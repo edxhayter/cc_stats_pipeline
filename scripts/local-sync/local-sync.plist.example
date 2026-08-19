@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.example.cricket-scorecards-sync</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/path/to/cc_stats_pipeline/scripts/local-sync/sync.sh</string>
+    </array>
+
+    <key>WatchPaths</key>
+    <array>
+        <string>/path/to/your/scorecards/folder</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/path/to/cc_stats_pipeline/scripts/local-sync/launchd.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/path/to/cc_stats_pipeline/scripts/local-sync/launchd.err.log</string>
+</dict>
+</plist>

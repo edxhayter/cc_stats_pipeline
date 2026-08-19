@@ -1,0 +1,23 @@
+# Copy to terraform.tfvars and fill in — terraform.tfvars is gitignored.
+
+aws_region          = "eu-west-2"
+aws_profile         = "your-aws-cli-profile"
+landing_bucket_name = "your-landing-bucket-name" # globally unique
+
+# --- Snowflake ---------------------------------------------------------------
+snowflake_organization_name  = ""
+snowflake_account_name       = ""
+snowflake_user               = ""
+snowflake_role               = ""
+snowflake_private_key_path   = "path/to/your_private_key.p8"
+snowflake_private_passphrase = "" # only if the key file is passphrase-protected
+snowflake_database_name      = "" # existing database, not provisioned by Terraform
+snowflake_warehouse_name     = "" # existing warehouse, must be UPPERCASE
+
+# Second-pass values — leave unset for the first apply (the module falls back
+# to a safe placeholder), then fill in from:
+#   terraform output snowflake_storage_aws_iam_user_arn
+#   terraform output snowflake_storage_aws_external_id
+# and re-apply.
+# snowflake_storage_aws_iam_user_arn = ""
+# snowflake_storage_aws_external_id  = ""
