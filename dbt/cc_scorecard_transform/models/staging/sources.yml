@@ -1,0 +1,25 @@
+version: 2
+
+sources:
+  - name: cricket_scorecards_raw
+    # database intentionally omitted — defaults to the active profile's
+    # database (see profiles.yml, gitignored) rather than hardcoding an
+    # account-specific name in a tracked file.
+    schema: CRICKET_SCORECARDS_RAW
+    tables:
+      - name: scorecard_lines
+        description: >
+          Raw scorecard text, one row per line, loaded verbatim by the
+          Snowflake load task (COPY INTO with FIELD_DELIMITER = 'NONE').
+          No filtering or transformation happens at load time — every
+          line of every file, including blank lines and marker lines,
+          is a row here.
+        columns:
+          - name: raw_line
+            description: The raw text of a single line from a scorecard file.
+          - name: source_file_name
+            description: Name of the source file this line came from — one file per match.
+          - name: source_file_row_number
+            description: 1-based line number within the source file, preserving original order.
+          - name: loaded_at
+            description: Timestamp the load task inserted this row.
