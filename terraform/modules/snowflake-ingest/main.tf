@@ -180,6 +180,7 @@ resource "snowflake_task" "load_scorecards" {
         METADATA$FILE_ROW_NUMBER,
         CURRENT_TIMESTAMP()
       FROM @${var.database_name}.${snowflake_schema.raw.name}.${snowflake_stage.scorecard_landing.name}
+        (PATTERN => '.*[.]txt')
     )
     FILE_FORMAT = (FORMAT_NAME = '${var.database_name}.${snowflake_schema.raw.name}.${snowflake_file_format.scorecard_line.name}')
     ON_ERROR = 'ABORT_STATEMENT'
