@@ -42,3 +42,41 @@ models:
               config:
                 severity: warn
                 where: "block_type is not null"
+
+  - name: stg_row_classification
+    description: >
+      stg_blocks annotated with row_type per line — its role within its
+      block. Still 1:1 grain with the source — see
+      assert_stg_row_classification_row_count_matches_source.
+    columns:
+      - name: row_type
+        description: >
+          NULL for marker lines. Otherwise one of: blank, divider,
+          match_header_data, result_data, batting_header, batting_data,
+          extras, total, bowling_header, bowling_data, fow_header,
+          fow_data. Validated against all 173 files currently loaded —
+          every non-marker line gets classified, none fall through to
+          NULL. Warn (not error) if an unrecognized format variant
+          shows up later.
+        tests:
+          - accepted_values:
+              arguments:
+                values:
+                  - blank
+                  - divider
+                  - match_header_data
+                  - result_data
+                  - batting_header
+                  - batting_data
+                  - extras
+                  - total
+                  - bowling_header
+                  - bowling_data
+                  - fow_header
+                  - fow_data
+              config:
+                severity: warn
+                where: "row_type is not null"
+          - not_null:
+              config:
+                where: "not is_marker_line"
