@@ -1,0 +1,96 @@
+version: 2
+
+models:
+  - name: int_match_header
+    description: One row per match — teams, date, competition, format.
+    columns:
+      - name: source_file_name
+        tests:
+          - unique
+          - not_null
+      - name: home_team
+        tests:
+          - not_null
+      - name: away_team
+        tests:
+          - not_null
+      - name: match_date
+        tests:
+          - not_null
+      - name: match_format
+        description: >
+          TEST / ODI / T20 / T20I / FC_LEAGUE. T20I ("20 Over International")
+          was a real discovery, not anticipated in the original design —
+          distinct from domestic T20 ("20 Over Trophy"), same bracketed
+          "{ordinal} {type} (of N)" text structure as TEST/ODI. Validated
+          against all 173 files: zero UNKNOWN after adding it.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['TEST', 'ODI', 'T20', 'T20I', 'FC_LEAGUE']
+              config:
+                severity: warn
+
+  - name: int_result
+    description: One row per match — winner, margin, man of the match.
+    columns:
+      - name: source_file_name
+        tests:
+          - unique
+          - not_null
+      - name: result_type
+        description: >
+          WIN / DRAW / TIE / NO_RESULT. DRAW confirmed present in real data
+          (9 of 173 files); TIE/NO_RESULT are defensive, unconfirmed.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['WIN', 'DRAW', 'TIE', 'NO_RESULT']
+              config:
+                severity: warn
+      - name: result_margin_type
+        description: >
+          RUNS / WICKETS / INNINGS, null for non-WIN results. INNINGS
+          ("won by an innings and N runs") was a real discovery — an FC
+          match where the winning team's single innings outscored the
+          opponent's two completed innings combined, so they never bat
+          again. Confirmed present (2 of 173 files); a naive parse would
+          have silently misclassified these as RUNS with a null value.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['RUNS', 'WICKETS', 'INNINGS']
+              config:
+                severity: warn
+                where: "result_margin_type is not null"
+
+  - name: int_innings_totals
+    description: One row per team-innings x match — totals, wickets, overs, extras.
+    columns:
+      - name: source_file_name
+        tests:
+          - not_null
+      - name: team
+        tests:
+          - not_null
+      - name: team_innings_number
+        description: 1 or 2, relative to that team.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2]
+      - name: match_innings_sequence
+        description: >
+          1-4, chronological order across the whole match. Not always 4
+          per FC/Test match — an innings-victory match only has 3 (the
+          winning team never bats a second time). Confirmed: 2 of 173
+          files have 3 rather than 4 innings for exactly this reason.
+        tests:
+          - not_null
+      - name: total_runs
+        tests:
+          - not_null
+      - name: wickets_lost
+        tests:
+          - not_null

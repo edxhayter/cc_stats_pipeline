@@ -13,8 +13,18 @@ known structural variants:
 
 - **Limited overs (T20, ODI):** 2 innings blocks per file (one per team).
   Bowling column header is `O  D  R  W  Econ` — **D is Dots, not Maidens.**
-- **First Class / Test:** 4 innings blocks per file (each team bats twice).
+- **First Class / Test:** 4 innings blocks per file (each team bats twice)
+  — **except an innings-victory match, which only has 3** (the winning
+  team's single innings outscored the opponent's two completed innings
+  combined, so they never bat again — confirmed in 2 of 173 real files).
   Bowling column header is `O  M  R  W  Econ` (Maidens).
+
+Competition/date line has five known format variants (discovered by
+running against all 173 real files, not assumed up front):
+`TEST`, `ODI`, `T20` (domestic "20 Over Trophy"), `T20I` (international
+"20 Over International" — same bracketed `"{ordinal} {type} (of N)"`
+structure as TEST/ODI, easy to miss since it reads like domestic T20 at
+a glance), `FC_LEAGUE`.
 
 Other format notes:
 - Block boundaries are marked by lines of `*` characters.
@@ -24,6 +34,12 @@ Other format notes:
   not dropped.
 - Fall-of-wickets wraps onto a second line once more than ~5 wickets have
   fallen, and won't reach 10 entries if the innings didn't end all-out.
+- Match results include an **innings victory** phrasing — "Sussex won by
+  an innings and 83 runs" — distinct from a plain runs margin. A naive
+  parse of "won by (\d+)" fails to match "an" and would silently produce
+  a null margin while still misclassifying it as a RUNS result; confirmed
+  in 2 of 173 files. `result_margin_type` has a dedicated `INNINGS` value
+  for this (see Marts section).
 
 ## Layering
 
@@ -115,13 +131,13 @@ reuse benefit to normalizing it out, only an extra join for every query.
 | `match_date` | date | |
 | `home_team_id` | FK → `dim_team` | the team listed first in the source file name/header — by convention, the home team |
 | `away_team_id` | FK → `dim_team` | |
-| `competition_name` | string | e.g. "English FC League", "20 Over Trophy", "One Day International", "Test Match" |
+| `competition_name` | string | e.g. "English FC League", "20 Over Trophy", "One Day International", "Test Match", "20 Over International" |
 | `competition_variant` | string | e.g. "D1", "Mid & West", "2nd Test Match (of 2)" |
-| `match_format` | string enum | `TEST` / `ODI` / `T20` / `FC_LEAGUE` — extracted directly from the competition line, not just derived from innings-block count |
-| `innings_per_team` | int | `1` (limited overs) or `2` (Test/FC) — kept as a simple derived flag alongside `match_format` for downstream logic that just needs the count |
+| `match_format` | string enum | `TEST` / `ODI` / `T20` / `T20I` / `FC_LEAGUE` — extracted directly from the competition line, not just derived from innings-block count. `T20I` is a real discovery (see Source section), not part of the original 4-value design |
+| `innings_per_team` | int | `1` (limited overs) or `2` (Test/FC) — kept as a simple derived flag alongside `match_format` for downstream logic that just needs the count. Note an innings-victory FC match still has `innings_per_team = 2` here (that's the format's normal rule) even though one team's actual innings count for that specific match was only 1 — this column describes the format, not the realized per-match count |
 | `winning_team_id` | FK → `dim_team`, nullable | null if drawn/no result |
-| `result_type` | string enum | `WIN` / `DRAW` / `TIE` / `NO_RESULT` |
-| `result_margin_type` | string enum, nullable | `RUNS` / `WICKETS` |
+| `result_type` | string enum | `WIN` / `DRAW` / `TIE` / `NO_RESULT` — `DRAW` confirmed present in real data (9 of 173 files); `TIE`/`NO_RESULT` remain unconfirmed |
+| `result_margin_type` | string enum, nullable | `RUNS` / `WICKETS` / `INNINGS` — `INNINGS` is a real discovery ("won by an innings and N runs", see Source section), not part of the original design |
 | `result_margin_value` | number, nullable | |
 | `man_of_the_match_id` | FK → `dim_player`, nullable | |
 
