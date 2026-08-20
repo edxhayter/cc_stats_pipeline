@@ -45,6 +45,7 @@ totals as (
 
 select
     h.source_file_name,
+    h.block_id,
     h.team,
     h.team_innings_number,
     dense_rank() over (

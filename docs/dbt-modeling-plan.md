@@ -77,13 +77,17 @@ changes from "one row per line" to a structured row per entity.**
   the dismissal to whichever of the current pair is out) is replaced by
   the next batter in `batting_position` order. This gives named partnerships
   ("1st wicket: Gubbins & Orr, 66") rather than just a runs figure.
-  **Assumption, not yet validated:** this simulation assumes strict batting
-  order with no retired-hurt/substitution scenarios. None of the three
-  sample files reviewed so far show one, but this hasn't been checked
-  against a larger sample — if the game's export ever shows a retired
-  batter returning out of order, the simulation would mispair that
-  partnership. Worth a data-quality test once more samples are available
-  (see Testing strategy)
+  **Confirmed risk, not just hypothetical:** `int_batting_rows` found
+  retired-hurt genuinely occurs — Sri Lanka's K Mendis is listed twice in
+  the same innings (both innings, in fact) in
+  "25 Jun 2026-WI v SL (1st TST).txt" (6 of 5544 batting rows have
+  `dismissal_type = RETIRED_HURT` overall). The strict batting-position
+  simulation described above will need explicit handling for this exact
+  case when `int_partnerships` is built — a retired batter returning
+  breaks the "next batter in order" assumption. This also means
+  `fact_batting`'s grain (see Marts section) isn't strictly one row per
+  player per team-innings — `batting_position` disambiguates the two
+  stints.
 - `int_fielding_dismissals` — one row per catch/stumping event, parsed out
   of `dismissal_detail` (`"c Ingram b Kellaway"` → fielder `Ingram`;
   `"st Rizwan b Khan"` → keeper `Rizwan`). Run-outs in this source format
@@ -143,7 +147,11 @@ reuse benefit to normalizing it out, only an extra join for every query.
 
 ### `fact_batting`
 
-Grain: player × team-innings × match.
+Grain: batting stint × team-innings × match — **not strictly player ×
+team-innings × match**. A retired-hurt batter who returns is listed twice
+in the same innings (confirmed in real data, see `int_batting_rows`
+above); `batting_position` is the true disambiguator, not `player_id`
+alone.
 
 | Column | Type | Role | Notes |
 |---|---|---|---|
@@ -338,8 +346,9 @@ approach trustworthy rather than "looks right on three sample files":
 - Bowling Match Factor's pace/spin discipline split is deferred (see above).
 - Season/competition rollup grain for Match Factor (and other rolling
   aggregates) is intentionally left to the semantic layer, not fixed here.
-- `int_partnerships`' batting-order simulation assumes no retired-hurt/
-  substitution scenarios — unvalidated against a larger sample (see above).
+- `int_partnerships`' batting-order simulation will need explicit
+  retired-hurt handling — confirmed to occur (1 of 173 files), not just a
+  hypothetical risk (see above). Not yet built.
 
 ## Build order (this doc's scope)
 

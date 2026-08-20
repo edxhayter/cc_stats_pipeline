@@ -94,3 +94,102 @@ models:
       - name: wickets_lost
         tests:
           - not_null
+
+  - name: int_batting_rows
+    description: >
+      One row per batting stint x team-innings x match (includes did-not-bat
+      rows). NOT strictly one row per (player, team-innings, match) — a
+      retired-hurt batter who returns is listed twice in the same innings,
+      confirmed in 1 of 173 real files (Sri Lanka's K Mendis, both innings,
+      "25 Jun 2026-WI v SL (1st TST).txt"). batting_position is the real
+      disambiguator.
+    columns:
+      - name: source_file_name
+        tests:
+          - not_null
+      - name: batting_team
+        tests:
+          - not_null
+      - name: player_name
+        tests:
+          - not_null
+      - name: dismissal_type
+        description: >
+          CAUGHT / BOWLED / LBW / RUN_OUT / STUMPED / NOT_OUT / DID_NOT_BAT /
+          RETIRED_HURT. RETIRED_HURT was a real discovery (6 of 5544 rows) —
+          previously only a hypothetical risk flagged for int_partnerships'
+          batting-order simulation, now confirmed to actually occur.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - CAUGHT
+                  - BOWLED
+                  - LBW
+                  - RUN_OUT
+                  - STUMPED
+                  - NOT_OUT
+                  - DID_NOT_BAT
+                  - RETIRED_HURT
+              config:
+                severity: warn
+      - name: runs
+        description: NULL for did-not-bat rows — no stats exist for a player who never batted.
+        tests:
+          - not_null:
+              config:
+                where: "not did_not_bat"
+      - name: balls_faced
+        description: NULL for did-not-bat rows.
+        tests:
+          - not_null:
+              config:
+                where: "not did_not_bat"
+
+  - name: int_bowling_rows
+    description: One row per bowler x team-innings x match.
+    columns:
+      - name: source_file_name
+        tests:
+          - not_null
+      - name: bowling_team
+        tests:
+          - not_null
+      - name: player_name
+        tests:
+          - not_null
+      - name: overs
+        tests:
+          - not_null
+      - name: runs_conceded
+        tests:
+          - not_null
+      - name: wickets
+        tests:
+          - not_null
+
+  - name: int_fow_rows
+    description: >
+      One row per wicket x team-innings x match. Handles the multi-line
+      wrap (>5 wickets) via LATERAL FLATTEN. Validated: cumulative_score
+      never decreases and wicket_number is always sequential within an
+      innings across all 4414 real rows — equal consecutive scores (two
+      wickets falling for the same team total) are legitimate and expected,
+      not a parsing error.
+    columns:
+      - name: source_file_name
+        tests:
+          - not_null
+      - name: team
+        tests:
+          - not_null
+      - name: wicket_number
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+      - name: cumulative_score
+        tests:
+          - not_null
