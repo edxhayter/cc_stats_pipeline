@@ -162,7 +162,7 @@ alone.
 | `team_innings_number` | int (1 or 2) | dimension | which innings **for that team** |
 | `match_innings_sequence` | int (1–4) | dimension | overall chronological order of the innings **within the match** — team A's 1st = 1, team B's 1st = 2, team A's 2nd = 3, team B's 2nd = 4. Distinct from `team_innings_number`; useful for follow-on/declaration-order analysis that per-team numbering alone can't answer |
 | `batting_position` | int | dimension | order in the lineup |
-| `dismissal_type` | string enum | dimension | `CAUGHT` / `BOWLED` / `LBW` / `RUN_OUT` / `STUMPED` / `NOT_OUT` / `DID_NOT_BAT` — same vocabulary as `fact_fielding.dismissal_type` for the overlapping values, since a caught dismissal is the same event in both places |
+| `dismissal_type` | string enum | dimension | `CAUGHT` / `BOWLED` / `LBW` / `RUN_OUT` / `STUMPED` / `NOT_OUT` / `DID_NOT_BAT` / `RETIRED_HURT` — same vocabulary as `fact_fielding.dismissal_type` for the overlapping values, since a caught dismissal is the same event in both places. `RETIRED_HURT` is a real discovery (see Source section) |
 | `dismissal_detail` | string, nullable | dimension | raw dismissal text (bowler/fielder) |
 | `did_not_bat` | boolean | dimension | |
 | `runs` | number | measure — **summable** | |
@@ -356,11 +356,11 @@ Tests (see Testing strategy above) get written alongside each step, not
 bolted on at the end — e.g. the row-count reconciliation test belongs to
 step 1, `relationships` tests belong to step 4 as each mart is built.
 
-1. `sources.yml` + `stg_scorecard_lines` + `stg_blocks` + `stg_row_classification`
-2. `int_match_header` + `int_result` + `int_innings_totals`
-3. `int_batting_rows` + `int_bowling_rows` + `int_fow_rows`
-4. Core marts: `dim_team`, `dim_player`, `dim_match`, `fact_batting`,
-   `fact_bowling`, `fact_fow` (including contribution-to-team-% measures)
+1. ~~`sources.yml` + `stg_scorecard_lines` + `stg_blocks` + `stg_row_classification`~~ ✅
+2. ~~`int_match_header` + `int_result` + `int_innings_totals`~~ ✅
+3. ~~`int_batting_rows` + `int_bowling_rows` + `int_fow_rows`~~ ✅
+4. ~~Core marts: `dim_team`, `dim_player`, `dim_match`, `fact_batting`,
+   `fact_bowling`, `fact_fow` (including contribution-to-team-% measures)~~ ✅
 5. Match Factor columns on `fact_batting` / `fact_bowling`
 6. `int_partnerships` + `int_fielding_dismissals` → `fact_partnership` + `fact_fielding`
 7. Player/team match-summary marts, milestones, rolling aggregates
