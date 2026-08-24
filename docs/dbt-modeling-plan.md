@@ -414,3 +414,46 @@ is summed as a naive decimal in the `total_overs_naive`/`economy_rate`
 metrics (7.4 means 7 overs + 4 balls, not 7.4 decimal overs) — an
 approximation, not exact. Refine later by converting to total balls
 bowled before aggregating.
+
+**Verified queries**: `AI_VERIFIED_QUERIES` is a genuinely recent
+`CREATE SEMANTIC VIEW` clause (postdated the syntax reference fetched
+earlier in this build) — curated `QUESTION`/`SQL` pairs that improve
+Cortex Analyst's accuracy on the question shapes users actually ask.
+Clause sits after `METRICS`. The `SQL` in each entry is plain SQL against
+the physical mart tables (what Cortex Analyst itself generates under the
+hood), not the `SEMANTIC_VIEW(...)` wrapper syntax used for manual
+testing — the two are different things and shouldn't be confused. Three
+seeded so far (batting average, bowler wickets/economy, match result +
+MOTM), each independently validated by running its embedded SQL directly
+and confirming it matches numbers already verified elsewhere in this doc.
+More should be added as real usage surfaces the question shapes people
+actually ask.
+
+A small diagnostic macro (`macros/run_sql.sql`) was added alongside this
+— `dbt show` always appends a `LIMIT` clause, which breaks non-`SELECT`
+statements like `DESCRIBE SEMANTIC VIEW`. `dbt run-operation run_sql
+--args '{sql: "..."}'` is the workaround, worth knowing about for any
+future non-`SELECT` diagnostic query.
+
+## Cortex Agent (separate from the semantic view — not yet built)
+
+The agent is a distinct Snowflake object from the semantic view:
+`CREATE AGENT` bundles a model choice, tool references (including the
+semantic view), orchestration instructions, and sample questions into one
+schema-level object that Snowsight/the REST API actually talks to.
+
+**This one *does* belong in Terraform**, unlike the semantic view itself
+— confirmed via `snowflake_cortex_agent`, a real resource in the
+`snowflakedb/snowflake` Terraform provider (currently a **preview**
+feature, needs `preview_features_enabled = true` set on the provider).
+The reasoning that kept the semantic view out of Terraform doesn't apply
+here: the agent doesn't need to know mart column structure, it just
+references the semantic view by name — a loose, infrastructure-shaped
+coupling, not a data-modeling one. Its `specification` argument is an
+opaque YAML blob (model, tools, tool_resources, instructions, sample
+questions) that Terraform passes through rather than typing individual
+fields for.
+
+Not yet built — needs design input (model choice, agent persona/
+instructions, which sample questions to surface) before writing the
+Terraform resource.

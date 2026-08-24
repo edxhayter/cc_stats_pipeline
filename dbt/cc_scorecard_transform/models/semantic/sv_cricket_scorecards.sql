@@ -124,3 +124,25 @@ METRICS (
 
     dim_match.matches_count AS COUNT(dim_match.match_date)
 )
+
+-- A recent CREATE SEMANTIC VIEW addition (not in the syntax reference at
+-- the time the rest of this model was first written) — curated
+-- question+SQL pairs that improve Cortex Analyst's accuracy on the
+-- question shapes users actually ask. SQL is plain SQL against the
+-- physical mart tables (what Cortex Analyst itself generates under the
+-- hood), not the SEMANTIC_VIEW(...) wrapper syntax used for manual
+-- testing elsewhere in this project.
+AI_VERIFIED_QUERIES (
+    batting_average_for_player AS (
+        QUESTION 'What is a specific player''s batting average?'
+        SQL 'SELECT p.player_name, SUM(fb.runs) AS total_runs, SUM(CASE WHEN fb.dismissal_type NOT IN (''NOT_OUT'', ''DID_NOT_BAT'', ''RETIRED_HURT'') THEN 1 ELSE 0 END) AS dismissals, SUM(fb.runs) / NULLIF(SUM(CASE WHEN fb.dismissal_type NOT IN (''NOT_OUT'', ''DID_NOT_BAT'', ''RETIRED_HURT'') THEN 1 ELSE 0 END), 0) AS batting_average FROM {{ ref('fact_batting') }} fb JOIN {{ ref('dim_player') }} p ON fb.player_id = p.player_id WHERE p.player_name = ''N Gubbins'' GROUP BY p.player_name'
+    ),
+    wickets_and_economy_for_bowler AS (
+        QUESTION 'How many wickets has a specific bowler taken, and what is their economy rate?'
+        SQL 'SELECT p.player_name, SUM(bw.wickets) AS total_wickets, SUM(bw.runs_conceded) / NULLIF(SUM(bw.overs), 0) AS economy_rate FROM {{ ref('fact_bowling') }} bw JOIN {{ ref('dim_player') }} p ON bw.player_id = p.player_id WHERE p.player_name = ''B Kellaway'' GROUP BY p.player_name'
+    ),
+    match_result_and_motm AS (
+        QUESTION 'Who won a specific match, by what margin, and who was man of the match?'
+        SQL 'SELECT wt.team_name AS winning_team, m.result_margin_type, m.result_margin_value, mp.player_name AS man_of_the_match FROM {{ ref('dim_match') }} m JOIN {{ ref('dim_team') }} ht ON m.home_team_id = ht.team_id JOIN {{ ref('dim_team') }} at ON m.away_team_id = at.team_id LEFT JOIN {{ ref('dim_team') }} wt ON m.winning_team_id = wt.team_id LEFT JOIN {{ ref('dim_player') }} mp ON m.man_of_the_match_id = mp.player_id WHERE ht.team_name = ''Hampshire'' AND at.team_name = ''Glamorgan'' AND m.match_date = ''2026-05-01'''
+    )
+)
