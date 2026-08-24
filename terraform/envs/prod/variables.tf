@@ -57,6 +57,18 @@ variable "snowflake_warehouse_name" {
   type        = string
 }
 
+variable "snowflake_semantic_schema" {
+  description = <<-EOT
+    Schema the dbt project builds marts and the semantic view into (its
+    own dbt profile target schema — not the same as the Terraform-managed
+    raw ingest schema). Not provisioned by Terraform; dbt owns its
+    lifecycle. Referenced here only so the Cortex Agent can point at the
+    semantic view by fully qualified name.
+  EOT
+  type        = string
+  default     = "CRICKET_SCORECARDS"
+}
+
 variable "snowflake_storage_aws_iam_user_arn" {
   description = "Real value from `terraform output storage_aws_iam_user_arn` on the second apply pass; leave the module default on the first apply."
   type        = string
