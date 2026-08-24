@@ -1,0 +1,126 @@
+-- Snowflake Semantic View for Cortex Analyst, built via the
+-- Snowflake-Labs/dbt_semantic_view package (materialized='semantic_view'
+-- executes CREATE SEMANTIC VIEW under the hood). References the existing
+-- marts via ref() for correct dbt dependency tracking.
+--
+-- Scope: covers the core star schema only (dim_team, dim_player, dim_match,
+-- fact_batting, fact_bowling, fact_fow). Match Factor and the enrichment
+-- marts (partnerships, fielding, milestones, rolling aggregates) aren't
+-- built yet — this will need extending once they are.
+--
+-- dim_team and dim_player are each referenced multiple times with
+-- different aliases (role-playing dimensions) since the same physical
+-- dimension plays different roles across the star schema — e.g. a team
+-- can be the home team, away team, winner, batting side, or bowling side
+-- depending on which relationship you're looking at.
+--
+-- Known simplification: fact_bowling.overs is summed as a naive decimal
+-- (7.4 means 7 overs + 4 balls, not 7.4 decimal overs), so
+-- total_overs_naive / economy_rate are approximations, not exact. Refine
+-- later by converting to total balls bowled.
+
+{{ config(materialized='semantic_view') }}
+
+TABLES (
+    {{ ref('dim_match') }} PRIMARY KEY (match_id),
+    home_teams AS {{ ref('dim_team') }} PRIMARY KEY (team_id),
+    away_teams AS {{ ref('dim_team') }} PRIMARY KEY (team_id),
+    winning_teams AS {{ ref('dim_team') }} PRIMARY KEY (team_id),
+    batting_teams AS {{ ref('dim_team') }} PRIMARY KEY (team_id),
+    bowling_teams AS {{ ref('dim_team') }} PRIMARY KEY (team_id),
+    batters AS {{ ref('dim_player') }} PRIMARY KEY (player_id),
+    bowlers AS {{ ref('dim_player') }} PRIMARY KEY (player_id),
+    motm_players AS {{ ref('dim_player') }} PRIMARY KEY (player_id),
+    {{ ref('fact_batting') }},
+    {{ ref('fact_bowling') }},
+    {{ ref('fact_fow') }}
+)
+
+RELATIONSHIPS (
+    dim_match (home_team_id) REFERENCES home_teams (team_id),
+    dim_match (away_team_id) REFERENCES away_teams (team_id),
+    dim_match (winning_team_id) REFERENCES winning_teams (team_id),
+    dim_match (man_of_the_match_id) REFERENCES motm_players (player_id),
+    fact_batting (match_id) REFERENCES dim_match (match_id),
+    fact_batting (player_id) REFERENCES batters (player_id),
+    fact_batting (team_id) REFERENCES batting_teams (team_id),
+    fact_batting (opposition_team_id) REFERENCES bowling_teams (team_id),
+    fact_bowling (match_id) REFERENCES dim_match (match_id),
+    fact_bowling (player_id) REFERENCES bowlers (player_id),
+    fact_bowling (team_id) REFERENCES bowling_teams (team_id),
+    fact_bowling (opposition_team_id) REFERENCES batting_teams (team_id),
+    fact_fow (match_id) REFERENCES dim_match (match_id),
+    fact_fow (team_id) REFERENCES batting_teams (team_id)
+)
+
+FACTS (
+    fact_batting.runs AS fact_batting.runs,
+    fact_batting.balls_faced AS fact_batting.balls_faced,
+    fact_batting.fours AS fact_batting.fours,
+    fact_batting.sixes AS fact_batting.sixes,
+    fact_batting.strike_rate AS fact_batting.strike_rate,
+    fact_batting.pct_of_team_innings_runs AS fact_batting.pct_of_team_innings_runs,
+
+    fact_bowling.overs AS fact_bowling.overs,
+    fact_bowling.maidens AS fact_bowling.maidens,
+    fact_bowling.dots_bowled AS fact_bowling.dots_bowled,
+    fact_bowling.runs_conceded AS fact_bowling.runs_conceded,
+    fact_bowling.wickets AS fact_bowling.wickets,
+    fact_bowling.economy AS fact_bowling.economy,
+    fact_bowling.pct_of_team_innings_wickets AS fact_bowling.pct_of_team_innings_wickets,
+
+    fact_fow.cumulative_score AS fact_fow.cumulative_score
+)
+
+DIMENSIONS (
+    dim_match.match_date AS dim_match.match_date,
+    dim_match.competition_name AS dim_match.competition_name,
+    dim_match.competition_variant AS dim_match.competition_variant,
+    dim_match.match_format AS dim_match.match_format,
+    dim_match.result_type AS dim_match.result_type,
+    dim_match.result_margin_type AS dim_match.result_margin_type,
+
+    home_teams.team_name AS home_teams.team_name,
+    away_teams.team_name AS away_teams.team_name,
+    winning_teams.team_name AS winning_teams.team_name,
+    batting_teams.team_name AS batting_teams.team_name,
+    bowling_teams.team_name AS bowling_teams.team_name,
+
+    batters.player_name AS batters.player_name,
+    bowlers.player_name AS bowlers.player_name,
+    motm_players.player_name AS motm_players.player_name,
+
+    fact_batting.team_innings_number AS fact_batting.team_innings_number,
+    fact_batting.match_innings_sequence AS fact_batting.match_innings_sequence,
+    fact_batting.batting_position AS fact_batting.batting_position,
+    fact_batting.dismissal_type AS fact_batting.dismissal_type,
+
+    fact_bowling.team_innings_number AS fact_bowling.team_innings_number,
+    fact_bowling.match_innings_sequence AS fact_bowling.match_innings_sequence,
+
+    fact_fow.wicket_number AS fact_fow.wicket_number
+)
+
+METRICS (
+    fact_batting.total_runs AS SUM(fact_batting.runs),
+    fact_batting.total_balls_faced AS SUM(fact_batting.balls_faced),
+    fact_batting.total_fours AS SUM(fact_batting.fours),
+    fact_batting.total_sixes AS SUM(fact_batting.sixes),
+    fact_batting.dismissals AS SUM(
+        CASE
+            WHEN fact_batting.dismissal_type NOT IN ('NOT_OUT', 'DID_NOT_BAT', 'RETIRED_HURT') THEN 1
+            ELSE 0
+        END
+    ),
+    fact_batting.innings_count AS COUNT(fact_batting.runs),
+    fact_batting.batting_average AS fact_batting.total_runs / NULLIF(fact_batting.dismissals, 0),
+    fact_batting.batting_strike_rate AS fact_batting.total_runs / NULLIF(fact_batting.total_balls_faced, 0) * 100,
+
+    fact_bowling.total_runs_conceded AS SUM(fact_bowling.runs_conceded),
+    fact_bowling.total_wickets AS SUM(fact_bowling.wickets),
+    fact_bowling.total_overs_naive AS SUM(fact_bowling.overs),
+    fact_bowling.economy_rate AS fact_bowling.total_runs_conceded / NULLIF(fact_bowling.total_overs_naive, 0),
+    fact_bowling.bowling_average AS fact_bowling.total_runs_conceded / NULLIF(fact_bowling.total_wickets, 0),
+
+    dim_match.matches_count AS COUNT(dim_match.match_date)
+)

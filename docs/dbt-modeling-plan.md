@@ -365,4 +365,52 @@ step 1, `relationships` tests belong to step 4 as each mart is built.
 6. `int_partnerships` + `int_fielding_dismissals` → `fact_partnership` + `fact_fielding`
 7. Player/team match-summary marts, milestones, rolling aggregates
    (consistency/volatility, all-rounder composite)
-8. Semantic views for Cortex Analyst
+8. ~~Semantic views for Cortex Analyst~~ ✅ (first pass — see below; done
+   out of order, ahead of steps 5-7, and will need extending once those
+   land)
+
+## Semantic layer
+
+Built as a dbt model (`models/semantic/sv_cricket_scorecards.sql`) using
+the `Snowflake-Labs/dbt_semantic_view` package — `materialized='semantic_view'`
+executes native `CREATE SEMANTIC VIEW` DDL, with the model body written
+directly in that syntax (`TABLES`/`RELATIONSHIPS`/`FACTS`/`DIMENSIONS`/`METRICS`),
+referencing the existing marts via `ref()` for normal dbt dependency tracking.
+
+**Deliberately not defined in Terraform.** The semantic view is data
+modeling — it's built directly on the mart tables' column structure via
+`ref()`, so it belongs in the same tool that owns that structure (dbt).
+Defining it in Terraform would mean hardcoding mart column names in a
+second place that has no mechanism to stay in sync when a mart changes.
+This matches the project's existing split: Terraform owns infrastructure
+dbt doesn't/can't manage (storage integration, warehouse reference,
+tasks); dbt owns everything about the shape of the data, semantic view
+included. What *does* belong in Terraform: the Snowflake role + grants
+controlling who/what can query the semantic view — that's access-control
+infrastructure, already listed under "Snowflake — planned, not yet built"
+in the Terraform resources section above. Not yet built.
+
+**Clause order matters and isn't obvious from examples alone**: the formal
+grammar is `TABLES → RELATIONSHIPS → FACTS → DIMENSIONS → METRICS` — FACTS
+before DIMENSIONS, which is easy to get backwards. Also: every logical
+table needs an explicit `PRIMARY KEY (...)` declared in `TABLES` before it
+can be the referenced side of any `RELATIONSHIPS` entry — omitting it
+fails with a semantic (not syntax) error at creation time.
+
+**Role-playing dimensions**: `dim_team` and `dim_player` are each
+referenced multiple times under different aliases (`home_teams`,
+`away_teams`, `winning_teams`, `batting_teams`, `bowling_teams`; `batters`,
+`bowlers`, `motm_players`) since the same physical dimension plays
+different roles depending on which relationship is in view. Confirmed
+supported directly by Snowflake's own syntax.
+
+**Validated**, not just compiled: queried `SEMANTIC_VIEW(...)` directly
+and cross-checked against numbers manually verified from the Ham v Glm
+sample file at the very start of this build — N Gubbins: 149 runs, 2
+innings, average 74.5, exact match. Bowling metrics spot-checked too.
+
+**Known simplification carried over from the marts**: `fact_bowling.overs`
+is summed as a naive decimal in the `total_overs_naive`/`economy_rate`
+metrics (7.4 means 7 overs + 4 balls, not 7.4 decimal overs) — an
+approximation, not exact. Refine later by converting to total balls
+bowled before aggregating.

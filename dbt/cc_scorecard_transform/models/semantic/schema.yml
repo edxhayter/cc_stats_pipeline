@@ -1,0 +1,14 @@
+version: 2
+
+models:
+  - name: sv_cricket_scorecards
+    description: >
+      Snowflake Semantic View for Cortex Analyst, built via
+      Snowflake-Labs/dbt_semantic_view (materialized='semantic_view').
+      Covers the core star schema only — dim_team/dim_player/dim_match/
+      fact_batting/fact_bowling/fact_fow. Validated by querying
+      SEMANTIC_VIEW(...) directly and cross-checking against manually
+      verified numbers from the Ham v Glm sample file (N Gubbins: 149
+      runs, 2 innings, average 74.5 — exact match). Needs extending once
+      Match Factor and the enrichment marts (partnerships, fielding,
+      milestones, rolling aggregates) are built.
