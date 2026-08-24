@@ -193,3 +193,47 @@ models:
       - name: cumulative_score
         tests:
           - not_null
+
+  - name: int_batting_match_factor
+    description: >
+      One row per player per MATCH (not per innings) — aggregates a
+      player's runs/dismissals across all their innings in the match
+      before computing the ratio, since the metric compares "in this
+      match" as a whole. Peer group is top-6 batters (batting_position <= 6)
+      from both teams, across all innings in the match.
+    columns:
+      - name: source_file_name
+        tests:
+          - not_null
+      - name: player_name
+        tests:
+          - not_null
+      - name: own_batting_average
+        description: >
+          NULL only if own_dismissals somehow negative (shouldn't happen);
+          never dismissed uses total runs as the average stand-in, so this
+          is populated whenever the player has any top-6 runs recorded.
+      - name: batting_match_factor
+        description: >
+          NULL when the peer pool has zero dismissals (extremely rare edge
+          case — would require every other top-6 batter in the match to
+          be not-out). Higher is better.
+
+  - name: int_bowling_match_factor
+    description: >
+      One row per player per MATCH. Peer group is all other bowlers in
+      the match (no pace/spin discipline split — deferred, see
+      docs/dbt-modeling-plan.md).
+    columns:
+      - name: source_file_name
+        tests:
+          - not_null
+      - name: player_name
+        tests:
+          - not_null
+      - name: bowling_match_factor
+        description: >
+          NULL when the player took zero wickets in the match (own bowling
+          average is undefined, not zero) or when the peer pool took zero
+          wickets (extremely rare). Higher is better — ratio orientation
+          is inverted vs. batting since a lower bowling average is better.

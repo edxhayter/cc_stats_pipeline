@@ -263,6 +263,15 @@ overs) — none of it exists in the scorecard text.
 
 ## Advanced metrics: Match Factor
 
+**Implemented** as `int_batting_match_factor` / `int_bowling_match_factor`,
+joined onto `fact_batting`/`fact_bowling`. Validated against the Ham v Glm
+match: totals reconcile consistently across every player's row (e.g.
+149+861=1010 and 175+835=1010 — same match-wide top-6 total each time,
+correctly excluding whichever player's own row it's computed for), the
+ratio math checks out by hand (74.5/41.00=1.817), zero-wicket bowlers
+correctly get `NULL` rather than a value, and the bowling ratio's inverted
+orientation correctly rewards a *lower* average with a *higher* factor.
+
 Computed **at match grain** (not a career aggregate) — this is required
 because the calculation excludes the player from their own peer group,
 which can only be expressed cleanly before rolling up across matches.
@@ -361,7 +370,13 @@ step 1, `relationships` tests belong to step 4 as each mart is built.
 3. ~~`int_batting_rows` + `int_bowling_rows` + `int_fow_rows`~~ ✅
 4. ~~Core marts: `dim_team`, `dim_player`, `dim_match`, `fact_batting`,
    `fact_bowling`, `fact_fow` (including contribution-to-team-% measures)~~ ✅
-5. Match Factor columns on `fact_batting` / `fact_bowling`
+5. ~~Match Factor columns on `fact_batting` / `fact_bowling`~~ ✅ (via
+   `int_batting_match_factor` / `int_bowling_match_factor`, computed at
+   match grain from `int_batting_rows`/`int_bowling_rows` — not from the
+   facts themselves, to avoid a circular dependency — then joined onto
+   the facts by (source_file_name, player_name), repeating across a
+   multi-innings player's rows as expected. `sv_cricket_scorecards` still
+   needs extending to expose these two new columns as facts/metrics)
 6. `int_partnerships` + `int_fielding_dismissals` → `fact_partnership` + `fact_fielding`
 7. Player/team match-summary marts, milestones, rolling aggregates
    (consistency/volatility, all-rounder composite)

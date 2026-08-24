@@ -80,6 +80,12 @@ models:
               arguments:
                 to: ref('dim_team')
                 field: team_id
+      - name: batting_match_factor
+        description: >
+          NULL for batting_position > 6 (not a top-order batter) and
+          did-not-bat rows — see int_batting_match_factor. Same value
+          repeats across a player's two innings-rows in a multi-innings
+          match, since it's computed at match grain.
 
   - name: fact_bowling
     description: "Grain: bowler x team-innings x match."
@@ -98,6 +104,10 @@ models:
               arguments:
                 to: ref('dim_player')
                 field: player_id
+      - name: bowling_match_factor
+        description: >
+          NULL for bowlers who took zero wickets in the match — see
+          int_bowling_match_factor.
 
   - name: fact_fow
     description: "Grain: wicket x team-innings x match."
