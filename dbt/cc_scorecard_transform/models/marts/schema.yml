@@ -1,0 +1,118 @@
+version: 2
+
+models:
+  - name: dim_team
+    description: Distinct team names.
+    columns:
+      - name: team_id
+        tests:
+          - unique
+          - not_null
+      - name: team_name
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_player
+    description: >
+      Distinct player names. Natural key is name alone — no guarantee of
+      uniqueness across teams/countries if two real players ever share an
+      abbreviated name (open limitation, not solved here).
+    columns:
+      - name: player_id
+        tests:
+          - unique
+          - not_null
+      - name: player_name
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_match
+    description: One row per source file.
+    columns:
+      - name: match_id
+        tests:
+          - unique
+          - not_null
+      - name: source_file_name
+        tests:
+          - unique
+          - not_null
+      - name: home_team_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_team')
+                field: team_id
+      - name: away_team_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_team')
+                field: team_id
+
+  - name: fact_batting
+    description: >
+      Grain: batting stint x team-innings x match — not strictly one row
+      per (player, team-innings, match), see int_batting_rows.
+    columns:
+      - name: match_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_match')
+                field: match_id
+      - name: player_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_player')
+                field: player_id
+      - name: team_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_team')
+                field: team_id
+
+  - name: fact_bowling
+    description: "Grain: bowler x team-innings x match."
+    columns:
+      - name: match_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_match')
+                field: match_id
+      - name: player_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_player')
+                field: player_id
+
+  - name: fact_fow
+    description: "Grain: wicket x team-innings x match."
+    columns:
+      - name: match_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_match')
+                field: match_id
+      - name: team_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_team')
+                field: team_id
