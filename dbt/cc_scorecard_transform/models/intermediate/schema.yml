@@ -1,0 +1,300 @@
+version: 2
+
+models:
+  - name: int_match_header
+    description: One row per match — teams, date, competition, format.
+    columns:
+      - name: source_file_name
+        tests:
+          - unique
+          - not_null
+      - name: home_team
+        tests:
+          - not_null
+      - name: away_team
+        tests:
+          - not_null
+      - name: match_date
+        tests:
+          - not_null
+      - name: match_format
+        description: >
+          TEST / ODI / T20 / T20I / FC_LEAGUE. T20I ("20 Over International")
+          was a real discovery, not anticipated in the original design —
+          distinct from domestic T20 ("20 Over Trophy"), same bracketed
+          "{ordinal} {type} (of N)" text structure as TEST/ODI. Validated
+          against all 173 files: zero UNKNOWN after adding it.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['TEST', 'ODI', 'T20', 'T20I', 'FC_LEAGUE']
+              config:
+                severity: warn
+
+  - name: int_result
+    description: One row per match — winner, margin, man of the match.
+    columns:
+      - name: source_file_name
+        tests:
+          - unique
+          - not_null
+      - name: result_type
+        description: >
+          WIN / DRAW / TIE / NO_RESULT. DRAW confirmed present in real data
+          (9 of 173 files); TIE/NO_RESULT are defensive, unconfirmed.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['WIN', 'DRAW', 'TIE', 'NO_RESULT']
+              config:
+                severity: warn
+      - name: result_margin_type
+        description: >
+          RUNS / WICKETS / INNINGS, null for non-WIN results. INNINGS
+          ("won by an innings and N runs") was a real discovery — an FC
+          match where the winning team's single innings outscored the
+          opponent's two completed innings combined, so they never bat
+          again. Confirmed present (2 of 173 files); a naive parse would
+          have silently misclassified these as RUNS with a null value.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['RUNS', 'WICKETS', 'INNINGS']
+              config:
+                severity: warn
+                where: "result_margin_type is not null"
+
+  - name: int_innings_totals
+    description: One row per team-innings x match — totals, wickets, overs, extras.
+    columns:
+      - name: source_file_name
+        tests:
+          - not_null
+      - name: team
+        tests:
+          - not_null
+      - name: team_innings_number
+        description: 1 or 2, relative to that team.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2]
+      - name: match_innings_sequence
+        description: >
+          1-4, chronological order across the whole match. Not always 4
+          per FC/Test match — an innings-victory match only has 3 (the
+          winning team never bats a second time). Confirmed: 2 of 173
+          files have 3 rather than 4 innings for exactly this reason.
+        tests:
+          - not_null
+      - name: total_runs
+        tests:
+          - not_null
+      - name: wickets_lost
+        tests:
+          - not_null
+
+  - name: int_batting_rows
+    description: >
+      One row per batting stint x team-innings x match (includes did-not-bat
+      rows). NOT strictly one row per (player, team-innings, match) — a
+      retired-hurt batter who returns is listed twice in the same innings,
+      confirmed in 1 of 173 real files (Sri Lanka's K Mendis, both innings,
+      "25 Jun 2026-WI v SL (1st TST).txt"). batting_position is the real
+      disambiguator.
+    columns:
+      - name: source_file_name
+        tests:
+          - not_null
+      - name: batting_team
+        tests:
+          - not_null
+      - name: player_name
+        tests:
+          - not_null
+      - name: dismissal_type
+        description: >
+          CAUGHT / BOWLED / LBW / RUN_OUT / STUMPED / NOT_OUT / DID_NOT_BAT /
+          RETIRED_HURT. RETIRED_HURT was a real discovery (6 of 5544 rows) —
+          previously only a hypothetical risk flagged for int_partnerships'
+          batting-order simulation, now confirmed to actually occur.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - CAUGHT
+                  - BOWLED
+                  - LBW
+                  - RUN_OUT
+                  - STUMPED
+                  - NOT_OUT
+                  - DID_NOT_BAT
+                  - RETIRED_HURT
+              config:
+                severity: warn
+      - name: runs
+        description: NULL for did-not-bat rows — no stats exist for a player who never batted.
+        tests:
+          - not_null:
+              config:
+                where: "not did_not_bat"
+      - name: balls_faced
+        description: NULL for did-not-bat rows.
+        tests:
+          - not_null:
+              config:
+                where: "not did_not_bat"
+
+  - name: int_bowling_rows
+    description: One row per bowler x team-innings x match.
+    columns:
+      - name: source_file_name
+        tests:
+          - not_null
+      - name: bowling_team
+        tests:
+          - not_null
+      - name: player_name
+        tests:
+          - not_null
+      - name: overs
+        tests:
+          - not_null
+      - name: runs_conceded
+        tests:
+          - not_null
+      - name: wickets
+        tests:
+          - not_null
+
+  - name: int_fow_rows
+    description: >
+      One row per wicket x team-innings x match. Handles the multi-line
+      wrap (>5 wickets) via LATERAL FLATTEN. Validated: cumulative_score
+      never decreases and wicket_number is always sequential within an
+      innings across all 4414 real rows — equal consecutive scores (two
+      wickets falling for the same team total) are legitimate and expected,
+      not a parsing error.
+    columns:
+      - name: source_file_name
+        tests:
+          - not_null
+      - name: team
+        tests:
+          - not_null
+      - name: wicket_number
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+      - name: cumulative_score
+        tests:
+          - not_null
+
+  - name: int_batting_match_factor
+    description: >
+      One row per player per MATCH (not per innings) — aggregates a
+      player's runs/dismissals across all their innings in the match
+      before computing the ratio, since the metric compares "in this
+      match" as a whole. Peer group is top-6 batters (batting_position <= 6)
+      from both teams, across all innings in the match.
+    columns:
+      - name: source_file_name
+        tests:
+          - not_null
+      - name: player_name
+        tests:
+          - not_null
+      - name: own_batting_average
+        description: >
+          NULL only if own_dismissals somehow negative (shouldn't happen);
+          never dismissed uses total runs as the average stand-in, so this
+          is populated whenever the player has any top-6 runs recorded.
+      - name: batting_match_factor
+        description: >
+          NULL when the peer pool has zero dismissals (extremely rare edge
+          case — would require every other top-6 batter in the match to
+          be not-out). Higher is better.
+
+  - name: int_bowling_match_factor
+    description: >
+      One row per player per MATCH. Peer group is all other bowlers in
+      the match (no pace/spin discipline split — deferred, see
+      docs/dbt-modeling-plan.md).
+    columns:
+      - name: source_file_name
+        tests:
+          - not_null
+      - name: player_name
+        tests:
+          - not_null
+      - name: bowling_match_factor
+        description: >
+          NULL when the player took zero wickets in the match (own bowling
+          average is undefined, not zero) or when the peer pool took zero
+          wickets (extremely rare). Higher is better — ratio orientation
+          is inverted vs. batting since a lower bowling average is better.
+
+  - name: int_fielding_dismissals
+    description: >
+      One row per catch/stumping dismissal event. Fielder/bowler credit
+      text is surname-only, resolved against the fielding team's full
+      match roster. Three real discoveries: "c & b {bowler}" means caught
+      and bowled (fielder = bowler, 62 occurrences, handled explicitly);
+      the same player's surname can be abbreviated differently in the
+      main tables vs. this tighter dismissal-detail column (fixed by
+      matching on the fragment after an apostrophe when present); ~59
+      cases are genuinely ambiguous (two same-surname teammates, e.g.
+      Tom & Sam Curran) and correctly left NULL rather than guessed.
+    columns:
+      - name: source_file_name
+        tests:
+          - not_null
+      - name: team
+        tests:
+          - not_null
+      - name: dismissal_type
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [CAUGHT, STUMPED]
+      - name: fielder_match_count
+        description: >
+          NULL for caught-and-bowled rows (not applicable — fielder_name
+          is copied from the resolved bowler instead). 0 = surname matched
+          no roster player (should not occur post-fix); 1 = resolved
+          cleanly; 2+ = genuinely ambiguous, fielder_name left NULL.
+
+  - name: int_partnerships
+    description: >
+      One row per partnership x team-innings x match. The Nth partnership
+      is the pair at batting_position N and N+1 (self-join, not a full
+      simulation — see model file for why this reduces mathematically to
+      that under the standard scorecard-analysis assumption of
+      non-decreasing dismissal-position order). Validated against the
+      Ham v Glm match: all 10 partnership_runs values match the raw
+      fall-of-wickets deltas exactly. how_ended correctly handles the
+      tail-of-innings edge case where the not-out survivor isn't the
+      higher position (confirmed real case: position 10 not out,
+      position 11 dismissed — the reverse of the general assumption).
+      Known limitation, not fixed: the one file with retired-hurt
+      (K Mendis, "25 Jun 2026-WI v SL (1st TST).txt") produces a
+      nonsensical self-partnership row (a player "partnering" themselves)
+      — accepted given the 1-in-173 rarity, not silently hidden.
+    columns:
+      - name: source_file_name
+        tests:
+          - not_null
+      - name: team
+        tests:
+          - not_null
+      - name: partnership_number
+        tests:
+          - not_null
+      - name: partnership_runs
+        tests:
+          - not_null

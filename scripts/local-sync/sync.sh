@@ -45,6 +45,7 @@ log "sync started: \"$SOURCE_DIR\" -> s3://$S3_BUCKET/$S3_PREFIX"
 # a key ARN that can go stale if the key is ever rotated.
 if "$AWS_BIN" s3 sync "$SOURCE_DIR" "s3://$S3_BUCKET/$S3_PREFIX" \
   --sse aws:kms \
+  --exclude ".*" \
   --only-show-errors >>"$LOG_FILE" 2>&1; then
   log "sync completed successfully"
 else

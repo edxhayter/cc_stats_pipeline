@@ -1,0 +1,82 @@
+version: 2
+
+models:
+  - name: stg_scorecard_lines
+    description: 1:1 pass-through of the raw source, one row per line.
+    columns:
+      - name: raw_line
+        description: The raw text of a single line from a scorecard file.
+      - name: source_file_name
+        description: One file per match.
+        tests:
+          - not_null
+      - name: source_file_row_number
+        description: 1-based line number within the source file.
+        tests:
+          - not_null
+
+  - name: stg_blocks
+    description: >
+      stg_scorecard_lines annotated with block_id / block_type via
+      gaps-and-islands segmentation on marker lines. Still 1:1 grain with
+      the source — see assert_stg_blocks_row_count_matches_source.
+    columns:
+      - name: is_marker_line
+        tests:
+          - not_null
+      - name: block_id
+        tests:
+          - not_null
+      - name: block_type
+        description: >
+          NULL for marker lines themselves. For every other line, one of
+          match_header / batting / bowling / result. Never "unknown" in
+          practice against all 173 files currently loaded — warn (not
+          error) if that ever changes, since a new file uploaded with an
+          unrecognized format variant shouldn't block the whole build,
+          just get flagged for a look.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['match_header', 'batting', 'bowling', 'result']
+              config:
+                severity: warn
+                where: "block_type is not null"
+
+  - name: stg_row_classification
+    description: >
+      stg_blocks annotated with row_type per line — its role within its
+      block. Still 1:1 grain with the source — see
+      assert_stg_row_classification_row_count_matches_source.
+    columns:
+      - name: row_type
+        description: >
+          NULL for marker lines. Otherwise one of: blank, divider,
+          match_header_data, result_data, batting_header, batting_data,
+          extras, total, bowling_header, bowling_data, fow_header,
+          fow_data. Validated against all 173 files currently loaded —
+          every non-marker line gets classified, none fall through to
+          NULL. Warn (not error) if an unrecognized format variant
+          shows up later.
+        tests:
+          - accepted_values:
+              arguments:
+                values:
+                  - blank
+                  - divider
+                  - match_header_data
+                  - result_data
+                  - batting_header
+                  - batting_data
+                  - extras
+                  - total
+                  - bowling_header
+                  - bowling_data
+                  - fow_header
+                  - fow_data
+              config:
+                severity: warn
+                where: "row_type is not null"
+          - not_null:
+              config:
+                where: "not is_marker_line"

@@ -13,6 +13,7 @@ __pycache__/
 *.egg-info/
 .venv/
 venv/
+dbtenv/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
@@ -23,6 +24,7 @@ dbt/dbt_packages/
 dbt/logs/
 dbt/dbt_modules/
 .dbt/
+profiles.yml
 
 # Terraform
 **/.terraform/

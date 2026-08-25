@@ -1,0 +1,268 @@
+version: 2
+
+models:
+  - name: dim_team
+    description: Distinct team names.
+    columns:
+      - name: team_id
+        tests:
+          - unique
+          - not_null
+      - name: team_name
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_player
+    description: >
+      Distinct player names. Natural key is name alone — no guarantee of
+      uniqueness across teams/countries if two real players ever share an
+      abbreviated name (open limitation, not solved here).
+    columns:
+      - name: player_id
+        tests:
+          - unique
+          - not_null
+      - name: player_name
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_match
+    description: One row per source file.
+    columns:
+      - name: match_id
+        tests:
+          - unique
+          - not_null
+      - name: source_file_name
+        tests:
+          - unique
+          - not_null
+      - name: home_team_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_team')
+                field: team_id
+      - name: away_team_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_team')
+                field: team_id
+      - name: winning_team_id
+        description: >
+          The real invariant behind fact_team_match_summary.won: a WIN
+          result must actually name a winner. (won's own not_null test
+          was removed — it can never fail, since won = (team_id =
+          winning_team_id) and both sides are already non-null whenever
+          result_type = 'WIN'; this is the test that was missing instead.)
+        tests:
+          - not_null:
+              config:
+                where: "result_type = 'WIN'"
+
+  - name: fact_batting
+    description: >
+      Grain: batting stint x team-innings x match — not strictly one row
+      per (player, team-innings, match), see int_batting_rows.
+    columns:
+      - name: match_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_match')
+                field: match_id
+      - name: player_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_player')
+                field: player_id
+      - name: team_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_team')
+                field: team_id
+      - name: batting_match_factor
+        description: >
+          NULL for batting_position > 6 (not a top-order batter) and
+          did-not-bat rows — see int_batting_match_factor. Same value
+          repeats across a player's two innings-rows in a multi-innings
+          match, since it's computed at match grain.
+
+  - name: fact_bowling
+    description: "Grain: bowler x team-innings x match."
+    columns:
+      - name: match_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_match')
+                field: match_id
+      - name: player_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_player')
+                field: player_id
+      - name: bowling_match_factor
+        description: >
+          NULL for bowlers who took zero wickets in the match — see
+          int_bowling_match_factor.
+
+  - name: fact_fow
+    description: "Grain: wicket x team-innings x match."
+    columns:
+      - name: match_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_match')
+                field: match_id
+      - name: team_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_team')
+                field: team_id
+
+  - name: fact_partnership
+    description: >
+      Grain: partnership x team-innings x match. See int_partnerships —
+      the retired-hurt match ("25 Jun 2026-WI v SL (1st TST).txt")
+      produces one nonsensical self-partnership row, a known accepted
+      limitation.
+    columns:
+      - name: match_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_match')
+                field: match_id
+      - name: batter_1_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_player')
+                field: player_id
+      - name: batter_2_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_player')
+                field: player_id
+      - name: partnership_runs
+        tests:
+          - not_null
+
+  - name: fact_fielding
+    description: >
+      Grain: one row per catch/stumping dismissal event. fielder_id/
+      bowler_id are NULL where the surname didn't resolve to exactly one
+      roster player — see int_fielding_dismissals. Reconciled exactly
+      against fact_bowling.wickets (see
+      assert_bowler_wickets_reconcile_with_dismissal_types).
+    columns:
+      - name: match_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_match')
+                field: match_id
+      - name: batter_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_player')
+                field: player_id
+      - name: dismissal_type
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [CAUGHT, STUMPED]
+
+  - name: fact_player_match_summary
+    description: >
+      Grain: one row per player per match — batting + bowling + fielding
+      combined. Validated against Ham v Glm: F Middleton (175 runs =
+      69+106, 1 century + 1 half-century) and N Gubbins (149 runs =
+      73+76, 2 half-centuries) both match exactly. five_wicket_hauls
+      correctly uses a per-innings threshold, not match-summed — L Dawson
+      took 5 wickets total across two innings (2+3) but neither innings
+      alone reached 5, correctly showing 0.
+    columns:
+      - name: match_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_match')
+                field: match_id
+      - name: player_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_player')
+                field: player_id
+      - name: dismissals
+        tests:
+          - not_null
+      - name: centuries
+        tests:
+          - not_null
+      - name: five_wicket_hauls
+        tests:
+          - not_null
+
+  - name: fact_team_match_summary
+    description: >
+      Grain: one row per team per match (346 rows = 173 matches x 2).
+      Validated against Ham v Glm: Hampshire 733 runs (376+357), 19
+      wickets lost (10+9, second innings not all out), runs_conceded=598
+      (Glamorgan's total, correctly the mirror), batted_first=true
+      (matches file order), all reconciling exactly with the other facts.
+    columns:
+      - name: match_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_match')
+                field: match_id
+      - name: team_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_team')
+                field: team_id
+      - name: batted_first
+        tests:
+          - not_null
+      - name: won
+        description: >
+          NULL for a drawn/no-result match (result_type not WIN) —
+          neither team truly "won" or "lost", so NULL is more accurate
+          than FALSE. 18 rows are NULL, exactly matching 9 draws x 2 teams.
+          No not_null test here: won = (team_id = winning_team_id), so for
+          WIN-result rows it can never itself be NULL — the real invariant
+          is tested on dim_match.winning_team_id instead.
