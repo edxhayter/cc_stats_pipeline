@@ -207,10 +207,33 @@ Grain: wicket × team-innings × match.
 | `wicket_number` | int (1–10) | dimension |
 | `cumulative_score` | number | measure — non-additive across wickets (it's already cumulative); useful for partnership derivation |
 
-### `fact_partnership`
+### `fact_partnership` — implemented
 
 Grain: partnership × team-innings × match. Built from `int_partnerships`
 (see intermediate layer) — named partnerships, not just a runs figure.
+
+**The pairing turned out not to need a simulation at all.** Working
+through the induction: batters always enter in position order, and under
+the standard scorecard-analysis assumption of non-decreasing dismissal
+order (the same assumption every text-scorecard partnership tool relies
+on, ball-by-ball or not), the higher-positioned member of any pair always
+survives to partner the next arrival — so the Nth partnership is always
+just the pair at `batting_position` N and N+1. A plain self-join.
+Validated against the Ham v Glm match: all 10 `partnership_runs` values
+match the raw fall-of-wickets deltas exactly.
+
+One real bug caught during validation: `how_ended` initially always used
+the lower-position batter's dismissal, which is wrong at the tail of an
+all-out innings — confirmed real case: position 10 not out, position 11
+dismissed (the reverse of the general pattern). Fixed to check whichever
+of the pair actually has a real dismissal.
+
+**Known limitation, not fixed:** the retired-hurt match
+("25 Jun 2026-WI v SL (1st TST).txt") produces one nonsensical
+self-partnership row (a player "partnering" themselves) since the
+position-based pairing assumes each position is occupied by one player,
+once. Accepted given the 1-in-173 rarity, not silently hidden — flagged
+in code comments and schema tests.
 
 | Column | Type | Role | Notes |
 |---|---|---|---|
@@ -223,11 +246,33 @@ Grain: partnership × team-innings × match. Built from `int_partnerships`
 | `how_ended` | string enum, nullable | dimension | dismissal type that ended it; null if the innings ended with this partnership unbroken (all out never reached — e.g. declaration, chase completed, overs ran out) |
 | `partnership_runs` | number | measure — **summable** | `cumulative_score` at wicket *n* − at wicket *n-1* (or team total, for an unbroken final partnership) |
 
-### `fact_fielding`
+### `fact_fielding` — implemented
 
 Grain: one row per catch/stumping dismissal event. Built from
 `int_fielding_dismissals`. Run-outs aren't included — this source format
 doesn't credit a fielder for them.
+
+**Three real discoveries during implementation**, none anticipated in the
+original design:
+- The fielder/bowler credit text is **surname only** ("c Westley b
+  Harmer"), not the "Initial Surname" format used everywhere else in this
+  project. Resolved back to full identity by matching against the
+  fielding team's full match roster.
+- **"c & b {bowler}"** is cricket's standard "caught and bowled" notation
+  — the fielder and bowler are the same person (62 real occurrences).
+  Added a `caught_and_bowled` boolean column (not in the original design)
+  to make this explicit rather than silently resolving "&" and failing.
+- The same player's surname can be **abbreviated differently** depending
+  on which fixed-width column it lands in (e.g. "R Vasconcelos" in the
+  main tables vs. "V'oncelos" in the tighter dismissal-detail column) —
+  matched on the fragment after the apostrophe when present.
+- ~59 cases are **genuinely ambiguous** (two same-surname teammates, e.g.
+  Tom & Sam Curran) and correctly left `NULL` rather than guessed.
+
+Cross-validated exactly against `fact_bowling`: catches + stumpings +
+bowled + LBW dismissals sum to precisely `fact_bowling`'s total wickets
+(run-outs correctly excluded from the bowler's credit) — see
+`assert_bowler_wickets_reconcile_with_dismissal_types`.
 
 | Column | Type | Role | Notes |
 |---|---|---|---|
@@ -235,10 +280,11 @@ doesn't credit a fielder for them.
 | `team_id` | FK → `dim_team` | dimension | fielding team (opposition of the batting team) |
 | `team_innings_number` | int (1 or 2) | dimension | |
 | `match_innings_sequence` | int (1–4) | dimension | |
-| `fielder_id` | FK → `dim_player` | dimension | the credited catcher/stumper |
-| `bowler_id` | FK → `dim_player` | dimension | bowler who took the wicket |
+| `fielder_id` | FK → `dim_player`, nullable | dimension | the credited catcher/stumper; null if the surname didn't resolve to exactly one roster player |
+| `bowler_id` | FK → `dim_player`, nullable | dimension | bowler who took the wicket; same nullability caveat |
 | `batter_id` | FK → `dim_player` | dimension | batter dismissed |
 | `dismissal_type` | string enum | dimension | `CAUGHT` or `STUMPED` only |
+| `caught_and_bowled` | boolean | dimension | not in the original design — added when "c & b" was discovered |
 
 Row count itself is the measure here (`COUNT(*)` filtered by
 `dismissal_type` gives catches or stumpings) — no separate numeric column needed.
@@ -377,7 +423,9 @@ step 1, `relationships` tests belong to step 4 as each mart is built.
    the facts by (source_file_name, player_name), repeating across a
    multi-innings player's rows as expected. `sv_cricket_scorecards` still
    needs extending to expose these two new columns as facts/metrics)
-6. `int_partnerships` + `int_fielding_dismissals` → `fact_partnership` + `fact_fielding`
+6. ~~`int_partnerships` + `int_fielding_dismissals` → `fact_partnership` +
+   `fact_fielding`~~ ✅ (surfaced real bugs/discoveries along the way —
+   see the fact_partnership/fact_fielding sections above)
 7. Player/team match-summary marts, milestones, rolling aggregates
    (consistency/volatility, all-rounder composite)
 8. ~~Semantic views for Cortex Analyst~~ ✅ (first pass — see below; done

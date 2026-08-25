@@ -237,3 +237,64 @@ models:
           average is undefined, not zero) or when the peer pool took zero
           wickets (extremely rare). Higher is better — ratio orientation
           is inverted vs. batting since a lower bowling average is better.
+
+  - name: int_fielding_dismissals
+    description: >
+      One row per catch/stumping dismissal event. Fielder/bowler credit
+      text is surname-only, resolved against the fielding team's full
+      match roster. Three real discoveries: "c & b {bowler}" means caught
+      and bowled (fielder = bowler, 62 occurrences, handled explicitly);
+      the same player's surname can be abbreviated differently in the
+      main tables vs. this tighter dismissal-detail column (fixed by
+      matching on the fragment after an apostrophe when present); ~59
+      cases are genuinely ambiguous (two same-surname teammates, e.g.
+      Tom & Sam Curran) and correctly left NULL rather than guessed.
+    columns:
+      - name: source_file_name
+        tests:
+          - not_null
+      - name: team
+        tests:
+          - not_null
+      - name: dismissal_type
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [CAUGHT, STUMPED]
+      - name: fielder_match_count
+        description: >
+          NULL for caught-and-bowled rows (not applicable — fielder_name
+          is copied from the resolved bowler instead). 0 = surname matched
+          no roster player (should not occur post-fix); 1 = resolved
+          cleanly; 2+ = genuinely ambiguous, fielder_name left NULL.
+
+  - name: int_partnerships
+    description: >
+      One row per partnership x team-innings x match. The Nth partnership
+      is the pair at batting_position N and N+1 (self-join, not a full
+      simulation — see model file for why this reduces mathematically to
+      that under the standard scorecard-analysis assumption of
+      non-decreasing dismissal-position order). Validated against the
+      Ham v Glm match: all 10 partnership_runs values match the raw
+      fall-of-wickets deltas exactly. how_ended correctly handles the
+      tail-of-innings edge case where the not-out survivor isn't the
+      higher position (confirmed real case: position 10 not out,
+      position 11 dismissed — the reverse of the general assumption).
+      Known limitation, not fixed: the one file with retired-hurt
+      (K Mendis, "25 Jun 2026-WI v SL (1st TST).txt") produces a
+      nonsensical self-partnership row (a player "partnering" themselves)
+      — accepted given the 1-in-173 rarity, not silently hidden.
+    columns:
+      - name: source_file_name
+        tests:
+          - not_null
+      - name: team
+        tests:
+          - not_null
+      - name: partnership_number
+        tests:
+          - not_null
+      - name: partnership_runs
+        tests:
+          - not_null

@@ -126,3 +126,64 @@ models:
               arguments:
                 to: ref('dim_team')
                 field: team_id
+
+  - name: fact_partnership
+    description: >
+      Grain: partnership x team-innings x match. See int_partnerships —
+      the retired-hurt match ("25 Jun 2026-WI v SL (1st TST).txt")
+      produces one nonsensical self-partnership row, a known accepted
+      limitation.
+    columns:
+      - name: match_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_match')
+                field: match_id
+      - name: batter_1_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_player')
+                field: player_id
+      - name: batter_2_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_player')
+                field: player_id
+      - name: partnership_runs
+        tests:
+          - not_null
+
+  - name: fact_fielding
+    description: >
+      Grain: one row per catch/stumping dismissal event. fielder_id/
+      bowler_id are NULL where the surname didn't resolve to exactly one
+      roster player — see int_fielding_dismissals. Reconciled exactly
+      against fact_bowling.wickets (see
+      assert_bowler_wickets_reconcile_with_dismissal_types).
+    columns:
+      - name: match_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_match')
+                field: match_id
+      - name: batter_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_player')
+                field: player_id
+      - name: dismissal_type
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [CAUGHT, STUMPED]
