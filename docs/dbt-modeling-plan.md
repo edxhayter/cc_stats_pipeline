@@ -289,19 +289,53 @@ bowled + LBW dismissals sum to precisely `fact_bowling`'s total wickets
 Row count itself is the measure here (`COUNT(*)` filtered by
 `dismissal_type` gives catches or stumpings) — no separate numeric column needed.
 
-Enrichment marts still at the design-bullet stage (not yet column-specified,
-lower priority than the above):
-- **Player/team match-summary marts** — one row per player per match
-  (batting + bowling + fielding combined via the facts above) and one row
-  per team per match — including a `batted_first` boolean (whichever team's
-  innings has the lower `match_innings_sequence`) to support the contextual
-  win/loss and bat-first/chase splits agreed above
-- **Notable performances / milestones** — flags for centuries, 5-wicket
-  hauls, match-winning knocks
-- **Season/competition rolling aggregates** — pre-aggregated player/team
-  stats for "top run scorer this season"-style questions, plus consistency/
-  volatility (stdev of scores over a period) and an all-rounder composite
-  index (batting + bowling contribution combined)
+### `fact_player_match_summary` — implemented
+
+Grain: one row per player per match — batting + bowling + fielding
+combined (via `fact_batting`/`fact_bowling`/`fact_fielding`, not the
+`int_` layer — safe to source from other marts here since nothing feeds
+back into this one, unlike the Match Factor circularity). Milestone
+counts (`centuries`, `half_centuries`, `five_wicket_hauls`) use a
+per-innings threshold summed across a player's innings in the match, not
+a match-total threshold — validated: L Dawson took 5 wickets total across
+two innings (2+3) but neither innings alone reached 5, correctly showing
+`five_wicket_hauls = 0`. `is_man_of_the_match` is a plain boolean compare
+against `dim_match.man_of_the_match_id` — no invented "match-winning
+knock" heuristic, since MOTM is already an objective, game-awarded signal.
+Validated against Ham v Glm: Middleton (175 = 69+106, 1 century + 1
+half-century) and Gubbins (149 = 73+76, 2 half-centuries) both exact.
+
+Count-style columns (`dismissals`, `centuries`, `five_wicket_hauls`, etc.)
+default to 0 when the player has activity in that discipline but didn't
+hit the threshold. Raw sums (`total_wickets`, `total_runs_conceded`) stay
+`NULL` when the player has no rows in that discipline at all (natural
+`LEFT JOIN` miss) — "never bowled" stays distinguishable from "bowled and
+took nothing".
+
+### `fact_team_match_summary` — implemented
+
+Grain: one row per team per match (346 rows = 173 × 2, confirmed exactly).
+`batted_first` derived from whichever team's innings has
+`match_innings_sequence = 1` (always exactly one — enforced by
+`assert_exactly_one_team_batted_first_per_match`). `won` is `NULL` (not
+`FALSE`) for a drawn/no-result match — a real thing the first schema test
+draft got wrong (18 rows failed `not_null`, exactly 9 draws × 2 teams)
+before scoping the test to `result_type = 'WIN'` only; `NULL` is more
+accurate than `FALSE` here since a draw means neither team truly lost.
+Validated against Ham v Glm: Hampshire 733 runs (376+357), 19 wickets
+lost (10+9, second innings not all out), `runs_conceded` = 598 exactly
+mirrors Glamorgan's total, `batted_first = true` matches file order.
+
+**Rolling aggregates deliberately not built as a mart.** Per the Open
+Items decision already made for Match Factor ("rollup grain... is
+intentionally left to the semantic layer, not fixed here"), the same
+applies to "top scorer this season," consistency/volatility (`STDDEV`),
+and an all-rounder composite — Snowflake Semantic Views support `STDDEV`
+and arbitrary derived metrics natively in `METRICS`, so these are
+`sv_cricket_scorecards` extensions once it's revisited (step 8), not new
+physical tables. Milestones also didn't need their own mart — folded
+into `fact_player_match_summary` as count columns instead of a separate
+object, since there was no independent grain to justify one.
 
 **Known gaps, not solvable from this source regardless of modeling effort:**
 no toss data, no venue, no ball-by-ball or phase splits (powerplay/death
@@ -426,11 +460,14 @@ step 1, `relationships` tests belong to step 4 as each mart is built.
 6. ~~`int_partnerships` + `int_fielding_dismissals` → `fact_partnership` +
    `fact_fielding`~~ ✅ (surfaced real bugs/discoveries along the way —
    see the fact_partnership/fact_fielding sections above)
-7. Player/team match-summary marts, milestones, rolling aggregates
-   (consistency/volatility, all-rounder composite)
+7. ~~Player/team match-summary marts, milestones~~ ✅ (`fact_player_match_summary`,
+   `fact_team_match_summary`) — rolling aggregates deliberately deferred
+   to the semantic layer instead of a physical mart, see above
 8. ~~Semantic views for Cortex Analyst~~ ✅ (first pass — see below; done
-   out of order, ahead of steps 5-7, and will need extending once those
-   land)
+   out of order, ahead of steps 5-7. Still needs extending now that 5-7
+   are done: Match Factor columns, `fact_partnership`, `fact_fielding`,
+   the two match-summary marts, and the deferred rolling-aggregate
+   metrics (`STDDEV`, all-rounder composite) are all not yet exposed)
 
 ## Semantic layer
 

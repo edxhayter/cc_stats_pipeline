@@ -187,3 +187,72 @@ models:
           - accepted_values:
               arguments:
                 values: [CAUGHT, STUMPED]
+
+  - name: fact_player_match_summary
+    description: >
+      Grain: one row per player per match — batting + bowling + fielding
+      combined. Validated against Ham v Glm: F Middleton (175 runs =
+      69+106, 1 century + 1 half-century) and N Gubbins (149 runs =
+      73+76, 2 half-centuries) both match exactly. five_wicket_hauls
+      correctly uses a per-innings threshold, not match-summed — L Dawson
+      took 5 wickets total across two innings (2+3) but neither innings
+      alone reached 5, correctly showing 0.
+    columns:
+      - name: match_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_match')
+                field: match_id
+      - name: player_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_player')
+                field: player_id
+      - name: dismissals
+        tests:
+          - not_null
+      - name: centuries
+        tests:
+          - not_null
+      - name: five_wicket_hauls
+        tests:
+          - not_null
+
+  - name: fact_team_match_summary
+    description: >
+      Grain: one row per team per match (346 rows = 173 matches x 2).
+      Validated against Ham v Glm: Hampshire 733 runs (376+357), 19
+      wickets lost (10+9, second innings not all out), runs_conceded=598
+      (Glamorgan's total, correctly the mirror), batted_first=true
+      (matches file order), all reconciling exactly with the other facts.
+    columns:
+      - name: match_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_match')
+                field: match_id
+      - name: team_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_team')
+                field: team_id
+      - name: batted_first
+        tests:
+          - not_null
+      - name: won
+        description: >
+          NULL for a drawn/no-result match (result_type not WIN) —
+          neither team truly "won" or "lost", so NULL is more accurate
+          than FALSE. 18 rows are NULL, exactly matching 9 draws x 2 teams.
+        tests:
+          - not_null:
+              config:
+                where: "result_type = 'WIN'"
