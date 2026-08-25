@@ -5,10 +5,13 @@ models:
     description: >
       Snowflake Semantic View for Cortex Analyst, built via
       Snowflake-Labs/dbt_semantic_view (materialized='semantic_view').
-      Covers the core star schema only — dim_team/dim_player/dim_match/
-      fact_batting/fact_bowling/fact_fow. Validated by querying
-      SEMANTIC_VIEW(...) directly and cross-checking against manually
-      verified numbers from the Ham v Glm sample file (N Gubbins: 149
-      runs, 2 innings, average 74.5 — exact match). Needs extending once
-      Match Factor and the enrichment marts (partnerships, fielding,
-      milestones, rolling aggregates) are built.
+      Covers the full star schema — dim_team/dim_player/dim_match/
+      fact_batting/fact_bowling/fact_fow/fact_partnership/fact_fielding/
+      fact_player_match_summary/fact_team_match_summary — plus Match
+      Factor columns and rolling-aggregate metrics (STDDEV, all-rounder
+      composite) computed here rather than in a physical mart. First pass
+      validated by querying SEMANTIC_VIEW(...) directly and cross-checking
+      against manually verified numbers from the Ham v Glm sample file
+      (N Gubbins: 149 runs, 2 innings, average 74.5 — exact match); the
+      step-8 extension (this pass) still needs the same manual
+      cross-checking against Ham v Glm before treating it as validated.

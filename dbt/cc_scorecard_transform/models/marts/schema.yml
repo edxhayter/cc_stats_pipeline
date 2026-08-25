@@ -53,6 +53,17 @@ models:
               arguments:
                 to: ref('dim_team')
                 field: team_id
+      - name: winning_team_id
+        description: >
+          The real invariant behind fact_team_match_summary.won: a WIN
+          result must actually name a winner. (won's own not_null test
+          was removed — it can never fail, since won = (team_id =
+          winning_team_id) and both sides are already non-null whenever
+          result_type = 'WIN'; this is the test that was missing instead.)
+        tests:
+          - not_null:
+              config:
+                where: "result_type = 'WIN'"
 
   - name: fact_batting
     description: >
@@ -252,7 +263,6 @@ models:
           NULL for a drawn/no-result match (result_type not WIN) —
           neither team truly "won" or "lost", so NULL is more accurate
           than FALSE. 18 rows are NULL, exactly matching 9 draws x 2 teams.
-        tests:
-          - not_null:
-              config:
-                where: "result_type = 'WIN'"
+          No not_null test here: won = (team_id = winning_team_id), so for
+          WIN-result rows it can never itself be NULL — the real invariant
+          is tested on dim_match.winning_team_id instead.

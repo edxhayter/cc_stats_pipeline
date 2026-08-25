@@ -463,11 +463,14 @@ step 1, `relationships` tests belong to step 4 as each mart is built.
 7. ~~Player/team match-summary marts, milestones~~ ✅ (`fact_player_match_summary`,
    `fact_team_match_summary`) — rolling aggregates deliberately deferred
    to the semantic layer instead of a physical mart, see above
-8. ~~Semantic views for Cortex Analyst~~ ✅ (first pass — see below; done
-   out of order, ahead of steps 5-7. Still needs extending now that 5-7
-   are done: Match Factor columns, `fact_partnership`, `fact_fielding`,
-   the two match-summary marts, and the deferred rolling-aggregate
-   metrics (`STDDEV`, all-rounder composite) are all not yet exposed)
+8. ~~Semantic views for Cortex Analyst~~ ✅ (first pass done out of order,
+   ahead of steps 5-7; extended once 5-7 landed to cover Match Factor
+   columns, `fact_partnership`, `fact_fielding`, the two match-summary
+   marts, and the rolling-aggregate metrics (`STDDEV`, all-rounder
+   composite). Deployed via `dbt run` and spot-checked against the same
+   Ham v Glm numbers as the first pass — Hampshire 733 runs/batted
+   first/won, Glamorgan 598, F Middleton 175 runs/1 century, N Gubbins
+   149 runs/0 centuries, all reconciling exactly)
 
 ## Semantic layer
 
