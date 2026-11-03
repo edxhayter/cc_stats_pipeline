@@ -167,6 +167,7 @@ DIMENSIONS (
 
     fact_fow.wicket_number AS fact_fow.wicket_number,
 
+    fact_partnership.team_innings_number AS fact_partnership.team_innings_number,
     fact_partnership.partnership_number AS fact_partnership.partnership_number,
     fact_partnership.how_ended AS fact_partnership.how_ended,
     partnership_batter_1.player_name AS partnership_batter_1.player_name,
@@ -236,48 +237,53 @@ METRICS (
     fact_team_match_summary.sum_total_wickets_taken AS SUM(fact_team_match_summary.total_wickets_taken)
 )
 
--- A recent CREATE SEMANTIC VIEW addition (not in the syntax reference at
--- the time the rest of this model was first written) — curated
--- question+SQL pairs that improve Cortex Analyst's accuracy on the
--- question shapes users actually ask. SQL is plain SQL against the
--- physical mart tables (what Cortex Analyst itself generates under the
--- hood), not the SEMANTIC_VIEW(...) wrapper syntax used for manual
--- testing elsewhere in this project.
+-- Curated question+SQL pairs that improve Cortex Analyst's accuracy on the
+-- question shapes users actually ask. Two rules, both easy to get wrong:
+--   1. SQL references the LOGICAL table names declared in TABLES above
+--      (fact_batting, batters, winning_teams, ...), not physical tables via
+--      ref() — per Snowflake's semantic view docs. Role-playing aliases make
+--      this read naturally (JOIN batters, JOIN bowlers, JOIN fielders).
+--   2. QUESTION names the same concrete values the SQL filters on. A generic
+--      "a specific player" question paired with SQL hardcoding 'N Gubbins'
+--      teaches the model the wrong mapping.
+-- Each SQL was validated by running its physical-table equivalent against
+-- the dev marts. The data is the full 173-match 2026 season, so career
+-- totals here differ from the single-match Ham v Glm numbers in the docs.
 AI_VERIFIED_QUERIES (
     batting_average_for_player AS (
-        QUESTION 'What is a specific player''s batting average?'
-        SQL 'SELECT p.player_name, SUM(fb.runs) AS total_runs, SUM(CASE WHEN fb.dismissal_type NOT IN (''NOT_OUT'', ''DID_NOT_BAT'', ''RETIRED_HURT'') THEN 1 ELSE 0 END) AS dismissals, SUM(fb.runs) / NULLIF(SUM(CASE WHEN fb.dismissal_type NOT IN (''NOT_OUT'', ''DID_NOT_BAT'', ''RETIRED_HURT'') THEN 1 ELSE 0 END), 0) AS batting_average FROM {{ ref('fact_batting') }} fb JOIN {{ ref('dim_player') }} p ON fb.player_id = p.player_id WHERE p.player_name = ''N Gubbins'' GROUP BY p.player_name'
+        QUESTION 'What is N Gubbins'' batting average?'
+        SQL 'SELECT b.player_name, SUM(fb.runs) AS total_runs, SUM(CASE WHEN fb.dismissal_type NOT IN (''NOT_OUT'', ''DID_NOT_BAT'', ''RETIRED_HURT'') THEN 1 ELSE 0 END) AS dismissals, SUM(fb.runs) / NULLIF(SUM(CASE WHEN fb.dismissal_type NOT IN (''NOT_OUT'', ''DID_NOT_BAT'', ''RETIRED_HURT'') THEN 1 ELSE 0 END), 0) AS batting_average FROM fact_batting AS fb JOIN batters AS b ON fb.player_id = b.player_id WHERE b.player_name = ''N Gubbins'' GROUP BY b.player_name'
     ),
     wickets_and_economy_for_bowler AS (
-        QUESTION 'How many wickets has a specific bowler taken, and what is their economy rate?'
-        SQL 'SELECT p.player_name, SUM(bw.wickets) AS total_wickets, SUM(bw.runs_conceded) / NULLIF(SUM(bw.overs), 0) AS economy_rate FROM {{ ref('fact_bowling') }} bw JOIN {{ ref('dim_player') }} p ON bw.player_id = p.player_id WHERE p.player_name = ''B Kellaway'' GROUP BY p.player_name'
+        QUESTION 'How many wickets has B Kellaway taken, and what is his economy rate?'
+        SQL 'SELECT bo.player_name, SUM(bw.wickets) AS total_wickets, SUM(bw.runs_conceded) / NULLIF(SUM(bw.overs), 0) AS economy_rate FROM fact_bowling AS bw JOIN bowlers AS bo ON bw.player_id = bo.player_id WHERE bo.player_name = ''B Kellaway'' GROUP BY bo.player_name'
     ),
     match_result_and_motm AS (
-        QUESTION 'Who won a specific match, by what margin, and who was man of the match?'
-        SQL 'SELECT wt.team_name AS winning_team, m.result_margin_type, m.result_margin_value, mp.player_name AS man_of_the_match FROM {{ ref('dim_match') }} m JOIN {{ ref('dim_team') }} ht ON m.home_team_id = ht.team_id JOIN {{ ref('dim_team') }} at ON m.away_team_id = at.team_id LEFT JOIN {{ ref('dim_team') }} wt ON m.winning_team_id = wt.team_id LEFT JOIN {{ ref('dim_player') }} mp ON m.man_of_the_match_id = mp.player_id WHERE ht.team_name = ''Hampshire'' AND at.team_name = ''Glamorgan'' AND m.match_date = ''2026-05-01'''
+        QUESTION 'Who won the match between Hampshire and Glamorgan on 1 May 2026, by what margin, and who was man of the match?'
+        SQL 'SELECT wt.team_name AS winning_team, m.result_margin_type, m.result_margin_value, mp.player_name AS man_of_the_match FROM dim_match AS m JOIN home_teams AS ht ON m.home_team_id = ht.team_id JOIN away_teams AS at ON m.away_team_id = at.team_id LEFT JOIN winning_teams AS wt ON m.winning_team_id = wt.team_id LEFT JOIN motm_players AS mp ON m.man_of_the_match_id = mp.player_id WHERE ht.team_name = ''Hampshire'' AND at.team_name = ''Glamorgan'' AND m.match_date = ''2026-05-01'''
     ),
     batting_match_factor_for_player AS (
-        QUESTION 'What was a player''s batting Match Factor in a specific match, i.e. how did they perform relative to their peers?'
-        SQL 'SELECT DISTINCT p.player_name, m.match_date, fb.batting_match_factor FROM {{ ref('fact_batting') }} fb JOIN {{ ref('dim_player') }} p ON fb.player_id = p.player_id JOIN {{ ref('dim_match') }} m ON fb.match_id = m.match_id WHERE p.player_name = ''F Middleton'' AND m.match_date = ''2026-05-01'''
+        QUESTION 'What was F Middleton''s batting Match Factor on 1 May 2026?'
+        SQL 'SELECT DISTINCT b.player_name, m.match_date, fb.batting_match_factor FROM fact_batting AS fb JOIN batters AS b ON fb.player_id = b.player_id JOIN dim_match AS m ON fb.match_id = m.match_id WHERE b.player_name = ''F Middleton'' AND m.match_date = ''2026-05-01'''
     ),
     bowling_match_factor_for_bowler AS (
-        QUESTION 'What was a bowler''s bowling Match Factor in a specific match, i.e. how did they perform relative to their peers?'
-        SQL 'SELECT DISTINCT p.player_name, m.match_date, bw.bowling_match_factor FROM {{ ref('fact_bowling') }} bw JOIN {{ ref('dim_player') }} p ON bw.player_id = p.player_id JOIN {{ ref('dim_match') }} m ON bw.match_id = m.match_id WHERE p.player_name = ''B Kellaway'' AND m.match_date = ''2026-05-01'''
+        QUESTION 'What was B Kellaway''s bowling Match Factor on 1 May 2026?'
+        SQL 'SELECT DISTINCT bo.player_name, m.match_date, bw.bowling_match_factor FROM fact_bowling AS bw JOIN bowlers AS bo ON bw.player_id = bo.player_id JOIN dim_match AS m ON bw.match_id = m.match_id WHERE bo.player_name = ''B Kellaway'' AND m.match_date = ''2026-05-01'''
     ),
     partnerships_for_team_in_match AS (
-        QUESTION 'What were the batting partnerships for a team in a specific match?'
-        SQL 'SELECT t.team_name, p.partnership_number, b1.player_name AS batter_1, b2.player_name AS batter_2, p.partnership_runs, p.how_ended FROM {{ ref('fact_partnership') }} p JOIN {{ ref('dim_team') }} t ON p.team_id = t.team_id JOIN {{ ref('dim_player') }} b1 ON p.batter_1_id = b1.player_id JOIN {{ ref('dim_player') }} b2 ON p.batter_2_id = b2.player_id JOIN {{ ref('dim_match') }} m ON p.match_id = m.match_id WHERE t.team_name = ''Hampshire'' AND m.match_date = ''2026-05-01'' ORDER BY p.partnership_number'
+        QUESTION 'What were Hampshire''s batting partnerships on 1 May 2026?'
+        SQL 'SELECT t.team_name, fp.team_innings_number, fp.partnership_number, b1.player_name AS batter_1, b2.player_name AS batter_2, fp.partnership_runs, fp.how_ended FROM fact_partnership AS fp JOIN batting_teams AS t ON fp.team_id = t.team_id JOIN partnership_batter_1 AS b1 ON fp.batter_1_id = b1.player_id JOIN partnership_batter_2 AS b2 ON fp.batter_2_id = b2.player_id JOIN dim_match AS m ON fp.match_id = m.match_id WHERE t.team_name = ''Hampshire'' AND m.match_date = ''2026-05-01'' ORDER BY fp.team_innings_number, fp.partnership_number'
     ),
     fielding_stats_for_player AS (
-        QUESTION 'How many catches and stumpings has a specific player taken?'
-        SQL 'SELECT p.player_name, SUM(CASE WHEN ff.dismissal_type = ''CAUGHT'' THEN 1 ELSE 0 END) AS catches, SUM(CASE WHEN ff.dismissal_type = ''STUMPED'' THEN 1 ELSE 0 END) AS stumpings FROM {{ ref('fact_fielding') }} ff JOIN {{ ref('dim_player') }} p ON ff.fielder_id = p.player_id WHERE p.player_name = ''F Middleton'' GROUP BY p.player_name'
+        QUESTION 'How many catches and stumpings has F Middleton taken?'
+        SQL 'SELECT f.player_name, SUM(CASE WHEN ff.dismissal_type = ''CAUGHT'' THEN 1 ELSE 0 END) AS catches, SUM(CASE WHEN ff.dismissal_type = ''STUMPED'' THEN 1 ELSE 0 END) AS stumpings FROM fact_fielding AS ff JOIN fielders AS f ON ff.fielder_id = f.player_id WHERE f.player_name = ''F Middleton'' GROUP BY f.player_name'
     ),
     best_all_rounders AS (
-        QUESTION 'Who are the best all-rounders, combining batting and bowling Match Factor across matches?'
-        SQL 'SELECT p.player_name, AVG(fpms.batting_match_factor) AS avg_batting_match_factor, AVG(fpms.bowling_match_factor) AS avg_bowling_match_factor, AVG(fpms.batting_match_factor) + AVG(fpms.bowling_match_factor) AS all_rounder_composite FROM {{ ref('fact_player_match_summary') }} fpms JOIN {{ ref('dim_player') }} p ON fpms.player_id = p.player_id WHERE fpms.batting_match_factor IS NOT NULL AND fpms.bowling_match_factor IS NOT NULL GROUP BY p.player_name ORDER BY all_rounder_composite DESC LIMIT 10'
+        QUESTION 'Who are the top 10 all-rounders, combining batting and bowling Match Factor, among players who batted and bowled in at least 5 matches?'
+        SQL 'SELECT sp.player_name, AVG(fpms.batting_match_factor) AS avg_batting_match_factor, AVG(fpms.bowling_match_factor) AS avg_bowling_match_factor, AVG(fpms.batting_match_factor) + AVG(fpms.bowling_match_factor) AS all_rounder_composite FROM fact_player_match_summary AS fpms JOIN summary_players AS sp ON fpms.player_id = sp.player_id WHERE fpms.batting_match_factor IS NOT NULL AND fpms.bowling_match_factor IS NOT NULL GROUP BY sp.player_name HAVING COUNT(*) >= 5 ORDER BY all_rounder_composite DESC LIMIT 10'
     ),
     team_match_summary_totals AS (
-        QUESTION 'What were a team''s total runs, wickets, and result in a specific match?'
-        SQL 'SELECT t.team_name, m.match_date, ftms.total_runs, ftms.total_wickets_lost, ftms.total_runs_conceded, ftms.total_wickets_taken, ftms.won FROM {{ ref('fact_team_match_summary') }} ftms JOIN {{ ref('dim_team') }} t ON ftms.team_id = t.team_id JOIN {{ ref('dim_match') }} m ON ftms.match_id = m.match_id WHERE t.team_name = ''Hampshire'' AND m.match_date = ''2026-05-01'''
+        QUESTION 'What were Hampshire''s total runs, wickets lost, and result against Glamorgan on 1 May 2026?'
+        SQL 'SELECT st.team_name, m.match_date, ftms.total_runs, ftms.total_wickets_lost, ftms.total_runs_conceded, ftms.total_wickets_taken, ftms.won FROM fact_team_match_summary AS ftms JOIN summary_teams AS st ON ftms.team_id = st.team_id JOIN dim_match AS m ON ftms.match_id = m.match_id WHERE st.team_name = ''Hampshire'' AND m.match_date = ''2026-05-01'''
     )
 )
