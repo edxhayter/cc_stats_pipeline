@@ -56,3 +56,6 @@ Thumbs.db
 
 # Node (in case any tooling scripts use it)
 node_modules/
+
+# Generated in CI by .github/scripts/write-dbt-profiles.sh
+dbt_projects_profiles.yml

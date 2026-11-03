@@ -9,7 +9,8 @@ Evaluates `CRICKET_SCORECARDS_ANALYST` with Snowflake's native
 |---|---|
 | `eval_cases.sql` | Eval table + 18 cases with ground truth, then creates dataset `CRICKET_AGENT_EVALSET_V1` |
 | `agent_evaluation_config.yaml` | Which agent, which dataset, which metrics |
-| `run_eval.sql` | Upload config, start a run, poll, read results |
+| `run_eval.py` | End-to-end runner used by CI |
+| `run_eval.sql` | The same steps as SQL, for running by hand |
 | `../../terraform/envs/prod/agent_evals.tf` | Stage + file format the config is read from |
 
 ## Cases
@@ -28,14 +29,19 @@ Ground truth came from the dev marts with 173 matches loaded (season to
 
 ## Running
 
-1. `terraform apply` to create the stage (one-off).
-2. Run `eval_cases.sql` once (set `agent_schema_fqn` at the top).
-3. Run `run_eval.sql` from SnowSQL or the Snowflake CLI (`PUT` needs a
-   client). Re-run step 3 on any agent or semantic view change.
+In CI this runs automatically after every production deploy
+(`.github/workflows/agent-evals.yml`, also manually triggerable) via
+`run_eval.py`, which creates the dataset if its version is new, uploads
+the config, starts the run, waits, and writes scores to the job summary.
+See [docs/cicd.md](../../docs/cicd.md).
 
-**Changing cases:** datasets are immutable. Edit the rows, bump `_V1` →
-`_V2` in both `eval_cases.sql` and `agent_evaluation_config.yaml`, rerun
-step 2.
+By hand: `pip install -r requirements.txt`, set the `SNOWFLAKE_*` env vars
+listed at the top of `run_eval.py`, and run `python run_eval.py`. Or step
+through `run_eval.sql` in SnowSQL.
+
+**Changing cases:** datasets are immutable. Edit the rows and bump `_V1`
+→ `_V2` in both `eval_cases.sql` and `agent_evaluation_config.yaml`; the
+next run creates the new dataset.
 
 **Privileges** (running role): a Cortex database role (e.g.
 `SNOWFLAKE.CORTEX_USER`), `EXECUTE TASK ON ACCOUNT`, `CREATE DATASET` and
