@@ -37,6 +37,10 @@ resource "snowflake_cortex_agent" "cricket_scorecards_analyst" {
         - question: "What is N Gubbins' batting average?"
         - question: "How many wickets has B Kellaway taken, and what is his economy rate?"
         - question: "Who won the match between Hampshire and Glamorgan on 1 May 2026, and who was man of the match?"
+        - question: "What was F Middleton's batting Match Factor on 1 May 2026?"
+        - question: "What were Hampshire's batting partnerships on 1 May 2026?"
+        - question: "How many catches and stumpings has F Middleton taken?"
+        - question: "Who are the best all-rounders, combining batting and bowling Match Factor?"
 
     tools:
       - tool_spec:
