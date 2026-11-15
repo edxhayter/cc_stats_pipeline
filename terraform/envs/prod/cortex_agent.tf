@@ -82,5 +82,11 @@ resource "snowflake_cortex_agent" "cricket_scorecards_analyst" {
     tool_resources:
       cricket_scorecards_analyst:
         semantic_view: "${var.snowflake_database_name}.${each.value.schema}.SV_CRICKET_SCORECARDS"
+        # Required outside Snowsight: evaluations and API calls have no
+        # session warehouse for the generated SQL to run on.
+        execution_environment:
+          type: "warehouse"
+          warehouse: "${var.snowflake_warehouse_name}"
+          query_timeout: 60
   YAML
 }
