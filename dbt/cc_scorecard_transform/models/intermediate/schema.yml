@@ -215,9 +215,15 @@ models:
           is populated whenever the player has any top-6 runs recorded.
       - name: batting_match_factor
         description: >
-          NULL when the peer pool has zero dismissals (extremely rare edge
-          case — would require every other top-6 batter in the match to
-          be not-out). Higher is better.
+          NULL when the peer pool has zero dismissals or zero runs
+          (extremely rare — every other top-6 batter not out, or all out
+          for ducks). Higher is better. Range-tested so a runaway ratio
+          fails the build rather than reaching the semantic view.
+        tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 50
 
   - name: int_bowling_match_factor
     description: >
@@ -233,10 +239,18 @@ models:
           - not_null
       - name: bowling_match_factor
         description: >
-          NULL when the player took zero wickets in the match (own bowling
-          average is undefined, not zero) or when the peer pool took zero
-          wickets (extremely rare). Higher is better — ratio orientation
-          is inverted vs. batting since a lower bowling average is better.
+          Peer average divided by the player's blended own average, (own
+          runs + peer average) / (own wickets + 1). NULL when the player
+          took zero wickets in the match, or when the peer pool took no
+          wickets or conceded no runs (extremely rare). Higher is better —
+          ratio orientation is inverted vs. batting since a lower bowling
+          average is better. The blend caps it at own wickets + 1.
+        tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                inclusive: false
+                max_value: 50
 
   - name: int_fielding_dismissals
     description: >

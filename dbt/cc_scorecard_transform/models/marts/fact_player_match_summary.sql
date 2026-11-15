@@ -17,6 +17,13 @@
 -- specialist batter never bowled) — a natural LEFT JOIN miss, not an
 -- explicit default, so "didn't bowl" stays distinguishable from "bowled
 -- and conceded/took nothing".
+--
+-- mf_* columns are the Match Factor ingredients (own and peer runs,
+-- dismissals, wickets for this match), straight from the int_ Match Factor
+-- models — no cycle, since those don't read this mart. The semantic view
+-- pools them into a Match Factor over any period; averaging the per-match
+-- factors instead would let one-over cameos dominate. Batting ingredients
+-- cover top-6 batters only, matching the factor's peer group.
 
 with roster as (
 
@@ -59,6 +66,36 @@ bowling_agg as (
 
 ),
 
+mf_batting as (
+
+    select
+        m.match_id,
+        pl.player_id,
+        bmf.own_runs,
+        bmf.own_dismissals,
+        bmf.peer_runs,
+        bmf.peer_dismissals
+    from {{ ref('int_batting_match_factor') }} bmf
+    join {{ ref('dim_match') }} m on bmf.source_file_name = m.source_file_name
+    join {{ ref('dim_player') }} pl on bmf.player_name = pl.player_name
+
+),
+
+mf_bowling as (
+
+    select
+        m.match_id,
+        pl.player_id,
+        bomf.own_runs_conceded,
+        bomf.own_wickets,
+        bomf.peer_runs_conceded,
+        bomf.peer_wickets
+    from {{ ref('int_bowling_match_factor') }} bomf
+    join {{ ref('dim_match') }} m on bomf.source_file_name = m.source_file_name
+    join {{ ref('dim_player') }} pl on bomf.player_name = pl.player_name
+
+),
+
 fielding_agg as (
 
     select
@@ -93,6 +130,14 @@ select
     bw.total_wickets,
     coalesce(bw.five_wicket_hauls, 0) as five_wicket_hauls,
     bw.bowling_match_factor,
+    mb.own_runs as mf_bat_own_runs,
+    mb.own_dismissals as mf_bat_own_dismissals,
+    mb.peer_runs as mf_bat_peer_runs,
+    mb.peer_dismissals as mf_bat_peer_dismissals,
+    mw.own_runs_conceded as mf_bowl_own_runs_conceded,
+    mw.own_wickets as mf_bowl_own_wickets,
+    mw.peer_runs_conceded as mf_bowl_peer_runs_conceded,
+    mw.peer_wickets as mf_bowl_peer_wickets,
     coalesce(fi.catches, 0) as catches,
     coalesce(fi.stumpings, 0) as stumpings,
     (r.player_id = m.man_of_the_match_id) as is_man_of_the_match
@@ -100,4 +145,6 @@ from roster r
 join {{ ref('dim_match') }} m on r.match_id = m.match_id
 left join batting_agg ba on r.match_id = ba.match_id and r.player_id = ba.player_id
 left join bowling_agg bw on r.match_id = bw.match_id and r.player_id = bw.player_id
+left join mf_batting mb on r.match_id = mb.match_id and r.player_id = mb.player_id
+left join mf_bowling mw on r.match_id = mw.match_id and r.player_id = mw.player_id
 left join fielding_agg fi on r.match_id = fi.match_id and r.player_id = fi.player_id
