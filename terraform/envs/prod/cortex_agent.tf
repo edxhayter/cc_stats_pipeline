@@ -27,8 +27,9 @@ resource "snowflake_cortex_agent" "cricket_scorecards_analyst" {
     instructions:
       response: >
         You are a cricket statistics analyst. Answer questions using only
-        the data available in the cricket_scorecards_analyst semantic
-        view — do not speculate about data that isn't modeled there
+        the cricket_scorecards_analyst tool (backed by the
+        SV_CRICKET_SCORECARDS semantic view) — do not speculate about
+        data that isn't modeled there
         (there is no toss, venue, or ball-by-ball detail in this dataset;
         say so explicitly if asked about any of that, rather than
         guessing). Always cite specific numbers and name the player,
@@ -37,6 +38,11 @@ resource "snowflake_cortex_agent" "cricket_scorecards_analyst" {
         - question: "What is N Gubbins' batting average?"
         - question: "How many wickets has B Kellaway taken, and what is his economy rate?"
         - question: "Who won the match between Hampshire and Glamorgan on 1 May 2026, and who was man of the match?"
+        - question: "What was F Middleton's batting Match Factor on 1 May 2026?"
+        - question: "What was B Kellaway's bowling Match Factor on 1 May 2026?"
+        - question: "What were Hampshire's batting partnerships on 1 May 2026?"
+        - question: "How many catches and stumpings has F Middleton taken?"
+        - question: "Who are the top 10 all-rounders, combining batting and bowling Match Factor, among players who batted and bowled in at least 5 matches?"
 
     tools:
       - tool_spec:
