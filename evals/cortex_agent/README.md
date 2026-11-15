@@ -1,113 +1,77 @@
 # Cortex Agent evals
 
-Evaluates the cricket scorecards agent with Snowflake's native
+Evaluates `CRICKET_SCORECARDS_ANALYST` with Snowflake's native
 [Cortex Agent evaluations](https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-agents-evaluations)
 (`EXECUTE_AI_EVALUATION`). Results show up in Snowsight under the agent's
 **Evaluations** tab as well as via SQL.
 
-Evals run against `CRICKET_SCORECARDS_ANALYST_EVAL`, a twin of the live
-agent built from the same Terraform definition. It reads a semantic view
-built over a frozen snapshot of the data, so the expected answers never
-drift as new scorecards land, and agent experiments don't touch the live
-agent.
-
 | File | What it is |
 |---|---|
-| `fixture.sql` | One-off zero-copy clone of the raw scorecard lines into `CRICKET_SCORECARDS_EVAL_RAW` |
-| `eval_cases.sql` | Versioned cases table + 31 cases with ground truth, then creates dataset `CRICKET_AGENT_EVALSET_V3` |
-| `agent_evaluation_config.yaml` | Which agent, which dataset, which metrics |
-| `run_eval.sh` | Starts a run: creates the dataset if new, uploads the config, names the run from git, optionally waits |
+| `eval_cases.sql` | Cases table + 29 cases with ground truth, then (re)creates dataset `CRICKET_AGENT_EVALSET` |
+| `agent_evaluation_config.yaml` | Which agent and version (`LIVE`), which dataset, which metrics |
+| `run_eval.sh` | Starts a run: rebuilds the dataset if the cases changed, uploads the config, names the run from git, optionally waits |
 | `run_eval.sql` | Reads a run's status, per-case scores and errors |
-| `../../terraform/envs/prod/agent_evals.tf` | Eval schemas, stage + file format the config is read from |
-| `../../terraform/envs/prod/cortex_agent.tf` | Live agent and its eval twin |
+| `../../scripts/promote_agent.sh` | Commits the evaluated `LIVE` version and makes it what users get |
+| `../../terraform/envs/prod/agent_evals.tf` | Stage + file format the config is read from |
 
-## How the snapshot works
+## What the evals test
 
-```
-CRICKET_SCORECARDS_RAW ──clone (once)──► CRICKET_SCORECARDS_EVAL_RAW
-                                              │  dbt build --target eval
-                                              ▼
-                       CRICKET_SCORECARDS_EVAL: marts + SV_CRICKET_SCORECARDS
-                                              │
-                                              ▼
-                              CRICKET_SCORECARDS_ANALYST_EVAL (twin agent)
-```
+The agent answers from live data that grows as scorecards land, so most
+cases test **behaviour**, not exact figures. Following Snowflake's guidance
+for changing data, their ground truth describes what a correct response
+should and shouldn't contain. Whether the marts compute the right numbers is
+the dbt tests' job; the verified queries pin down the semantic view's
+answers to common questions.
 
-The clone shares storage with the source and never sees later loads. The
-dbt `eval` target rebuilds the whole project over it, so a dbt or semantic
-view change that shifts an answer shows up as an eval failure.
-
-Snapshot in use: **235 matches, 3 April to 18 July 2026**. "This season"
-in the cases means that range.
-
-## Cases
-
-- **verified_query (9)** — mirror the `AI_VERIFIED_QUERIES` in
-  `sv_cricket_scorecards.sql`. Should pass; a failure here means something
-  is broken, not that the agent is weak.
-- **held_out_season / held_out_match (7)** — no verified query covers
-  them. These are the real measure of how well the semantic view
-  generalises. Includes a pooled season Match Factor question.
-- **name_resolution (2)** — surname only. "Gubbins" has one match;
-  "Ali" has four, and the sim's top-scoring Ali (K Ali) isn't the one
-  sharing a famous real-world name (M Ali).
+- **out_of_scope (3)** — toss, venue, ball-by-ball: say the data doesn't
+  have it, without calling any tool.
+- **semantics (6)** — averages per dismissal, economy per over, totals
+  across all of a player's teams, pooled Match Factor, minimum samples.
+- **name_resolution (2)** — surname only: "Gubbins" (one match) and "Ali"
+  (several; must not assume the real-world-famous M Ali).
 - **sim_vs_web (2)** — simulated-season figures come from the data, never
-  the web, and "career" questions default to the simulated season with a
-  pointer to the real-world record.
+  the web; "career" questions default to the simulated season.
 - **web_context (2)** — real-world background and pre-simulation history via
-  web search, labelled and kept separate. Web content changes, so these
-  expect behaviour rather than exact text.
+  web search, labelled and kept separate.
 - **skill (4)** — player-profile, match-report, selector and
-  match-journalism (`agent_skills/` at the repo root), answered in text.
-  None expects `code_execution`, so an unasked-for dashboard costs tool
-  selection.
-- **dashboard (2)** — explicit requests for a visual, the only cases that
+  match-journalism (`agent_skills/`), in text. None expects
+  `code_execution`, so an unasked-for dashboard costs tool selection.
+- **dashboard (2)** — explicit requests for a visual; the only cases that
   expect `code_execution`.
-- **out_of_scope (3)** — toss, venue, ball-by-ball. The agent should say
-  the data doesn't exist and not call any tool.
+- **fixed_fact (8)** — exact figures that new matches can't change: the
+  completed Hampshire v Glamorgan match of 1 May 2026, and April 2026. If
+  one changes, dbt logic changed.
 
-Ground truth comes from the eval marts only, never the raw scorecards: the
-evals score the agent against what the marts say, and parsing bugs are for
-the dbt tests to catch. Match Factor over a period is the pooled metric,
-not an average of per-match factors.
+## Workflow
 
-## Running
+Terraform edits the agent's `LIVE` (draft) version; users in Snowsight,
+CoWork and the API get the committed `DEFAULT` version. The evals target
+`LIVE`, so a change is scored before anyone sees it:
 
-1. `terraform apply` creates the eval schemas, twin agent and stage
-   (one-off).
-2. Run `fixture.sql` once to take the snapshot, then
-   `dbt build --target eval`.
-3. Start a run with `run_eval.sh` (needs the Snowflake CLI and `jq`):
-   ```sh
-   SNOWFLAKE_DATABASE=<db> evals/cortex_agent/run_eval.sh --label baseline --wait -- -c <connection>
-   ```
-   It creates the dataset from `eval_cases.sql` the first time, uploads
-   the config, and names the run `<label>-<git sha>-<UTC timestamp>`
-   (with `-dirty` if there are uncommitted changes), so every score traces
-   back to the code that produced it. Arguments after `--` go to every
-   `snow sql` call. Without `--wait` it returns once the run has started.
-4. Read the results in Snowsight, or with `run_eval.sql` using the printed
-   run name. Re-run step 3 on any agent or semantic view change, after
-   rebuilding the eval target.
+```sh
+terraform -chdir=terraform/envs/prod apply                     # 1. change LIVE
+SNOWFLAKE_DATABASE=<db> evals/cortex_agent/run_eval.sh --label <what> --wait -- -c <connection>   # 2. score it
+SNOWFLAKE_DATABASE=<db> scripts/promote_agent.sh -- -c <connection>                               # 3. release it
+```
 
-**Changing cases:** datasets are immutable. Edit the rows and bump the
-version on the cases table and dataset in `eval_cases.sql` and
-`agent_evaluation_config.yaml` (and the join in `run_eval.sql`); the next
-`run_eval.sh` creates the new dataset, and earlier versions keep their
-results. History: V1 (21 cases), V2 (29; skills always built dashboards),
-V3 (31; dashboards only on request).
+Run step 2 two or three times: agent orchestration is non-deterministic, so
+find the normal range before treating one drop as a regression.
+`answer_correctness` is the most stable metric; `tool_selection_accuracy`
+and `logical_consistency` move when the agent takes a different path.
+Record a change's before/after scores in its PR description.
 
-**New snapshot:** only deliberately. Re-run `fixture.sql` (replacing the
-clone), rebuild the eval target, re-derive every answer from the eval
-marts, and bump the dataset version.
+`run_eval.sh` needs the Snowflake CLI and `jq`. It rebuilds the cases table
+and dataset only when `eval_cases.sql` has changed (a hash of the file is
+kept as the table comment), and names each run
+`<label>-<git sha>[-dirty]-<UTC timestamp>`. Git is the history: `git show
+<sha>:evals/cortex_agent/eval_cases.sql` gives the cases any run was scored
+on. Arguments after `--` go to every `snow sql` call; `--wait` polls to
+completion and prints the scores, seconds and input tokens per question.
+
+To roll back a release: `ALTER AGENT CRICKET_SCORECARDS_ANALYST SET
+DEFAULT_VERSION = 'VERSION$<n>';`.
 
 **Privileges** (running role): a Cortex database role (e.g.
 `SNOWFLAKE.CORTEX_USER`), `EXECUTE TASK ON ACCOUNT`, `CREATE DATASET` and
 `CREATE TABLE` on the schema, `USAGE` + `MONITOR` on the agent, `READ` on
 the stage, and access to the semantic view.
-
-**Reading scores:** agent orchestration is non-deterministic. Run the
-dataset 2–3 times to find its normal range before treating a single drop
-as a regression. `answer_correctness` is the most stable metric;
-`tool_selection_accuracy` and `logical_consistency` move when the agent
-takes a different path.

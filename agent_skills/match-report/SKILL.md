@@ -13,6 +13,9 @@ than one match fits, list them and ask which one.
 
 ## 2. Gather (cricket_scorecards_analyst)
 
+Ask for everything below in as few analyst queries as possible — ideally
+one or two — rather than one query per item.
+
 - **Result:** winner, margin (runs or wickets), result type, format,
   competition, date, man of the match.
 - **Innings totals:** per team and innings — runs, wickets lost, overs.

@@ -14,9 +14,13 @@ which one is meant before going further.
 
 ## 2. Simulated season (cricket_scorecards_analyst)
 
+Ask for everything below in as few analyst queries as possible — ideally
+one or two — rather than one query per item.
+
 For this player only:
 
-- Team(s), formats played, matches played.
+- Team(s), formats played, matches played. Season totals cover all their
+  teams (county and country); split by team only as context.
 - Batting: runs, dismissals, average, strike rate, highest score, fifties
   and hundreds; pooled batting Match Factor if they batted in the top six.
 - Bowling: wickets, runs conceded, average, economy, best figures,

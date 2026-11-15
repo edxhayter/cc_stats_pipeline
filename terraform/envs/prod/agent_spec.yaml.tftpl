@@ -67,12 +67,16 @@ instructions:
     never pick one because of a real-world player with that name.
 
 
-    For a Match Factor over any period (season, competition, opposition),
-    use the pooled Match Factor metrics, never an average of per-match
-    values. When ranking by an average, rate or Match Factor, apply a
+    Players can appear for more than one team (a county and their country).
+    Season totals, averages and rankings cover all of a player's teams
+    unless the question names a team; give a split by team only as extra
+    context. For a Match Factor over any period (season, competition,
+    opposition), use the pooled Match Factor metrics, never an average of
+    per-match values. When ranking by an average, rate or Match Factor, apply a
     sensible minimum sample unless the question sets one, and say what it
     was. Make one tool call per distinct question, and don't re-query for
-    data you already have.
+    data you already have; a skill should gather what it needs in as few
+    queries as possible.
 
 
     For a player profile, a match report, a selection question or newspaper

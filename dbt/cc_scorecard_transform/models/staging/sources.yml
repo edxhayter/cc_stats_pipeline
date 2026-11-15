@@ -5,9 +5,7 @@ sources:
     # database intentionally omitted — defaults to the active profile's
     # database (see profiles.yml, gitignored) rather than hardcoding an
     # account-specific name in a tracked file.
-    # The eval target reads a frozen zero-copy clone instead, so eval ground
-    # truth never drifts as new scorecards land (evals/cortex_agent/fixture.sql).
-    schema: "{{ 'CRICKET_SCORECARDS_EVAL_RAW' if target.name == 'eval' else 'CRICKET_SCORECARDS_RAW' }}"
+    schema: CRICKET_SCORECARDS_RAW
     tables:
       - name: scorecard_lines
         description: >

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Start a Cortex Agent evaluation run against the eval twin agent
-# (CRICKET_SCORECARDS_ANALYST_EVAL), naming the run after what's being tested.
+# Start a Cortex Agent evaluation run against the LIVE (draft) version of
+# CRICKET_SCORECARDS_ANALYST, naming the run after what's being tested.
 #
 # Run name: <label>-<git short sha>[-dirty]-<UTC timestamp>, e.g.
 #   baseline-9e35736-20261115-163000. "-dirty" marks uncommitted changes, so a
 #   score can always be traced back to the code that produced it.
 #
-# Steps: create the eval dataset if its version is new (eval_cases.sql),
-# upload the config, START the run, and with --wait poll until it finishes.
+# Steps: rebuild the eval cases and dataset if eval_cases.sql changed, upload
+# the config, START the run, and with --wait poll until it finishes.
 #
 # Usage:
 #   SNOWFLAKE_DATABASE=<db> evals/cortex_agent/run_eval.sh [--label NAME] [--wait] [-- SNOW_FLAGS...]
@@ -16,7 +16,7 @@
 #   CI:     evals/cortex_agent/run_eval.sh --label deploy -- -x
 #
 # SNOW_FLAGS are passed to every `snow sql` call (connection selection).
-# EVAL_SCHEMA overrides the schema (default CRICKET_SCORECARDS_EVAL).
+# SNOWFLAKE_SCHEMA is the agent's schema (default CRICKET_SCORECARDS).
 # DRY_RUN=1 prints the SQL instead of running it.
 set -euo pipefail
 
@@ -33,7 +33,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 : "${SNOWFLAKE_DATABASE:?set SNOWFLAKE_DATABASE to the database holding the eval schema}"
-schema="${EVAL_SCHEMA:-CRICKET_SCORECARDS_EVAL}"
+schema="${SNOWFLAKE_SCHEMA:-CRICKET_SCORECARDS}"
 eval_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 config="$eval_dir/agent_evaluation_config.yaml"
 cases="$eval_dir/eval_cases.sql"
@@ -49,7 +49,7 @@ snow_sql() {
   if [[ "${DRY_RUN:-}" == 1 ]]; then
     echo "[dry run] $*" >&2
     case "$*" in
-      *"SHOW DATASETS"*) echo "[]" ;;
+      *"SHOW TABLES"*) echo "[]" ;;
       *"'STATUS'"*) echo '[{"STATUS": "COMPLETED"}]' ;;
     esac
     return
@@ -57,15 +57,16 @@ snow_sql() {
   snow sql ${snow_flags[@]+"${snow_flags[@]}"} --database "$SNOWFLAKE_DATABASE" --schema "$schema" "$@"
 }
 
-# Datasets are immutable, so a new _V<n> in the config means a new dataset.
-dataset="$(sed -n 's/^ *dataset_name: *"\([A-Z0-9_]*\)".*/\1/p' "$config")"
-if ! grep -q "\.${dataset}'" "$cases"; then
-  echo "eval_cases.sql doesn't create ${dataset}; bump the version in both files together" >&2
-  exit 1
-fi
-if [[ "$(snow_sql --format json -q "SHOW DATASETS LIKE '${dataset}' IN SCHEMA" | jq length)" -eq 0 ]]; then
-  echo "Creating dataset ${dataset}"
+# Rebuild the cases table and dataset only when eval_cases.sql has changed:
+# the table comment holds a hash of the file from the last rebuild, so runs
+# started back to back share one dataset instead of dropping it under each
+# other.
+cases_hash="$(shasum -a 256 "$cases" | cut -c1-16)"
+stored="$(snow_sql --format json -q "SHOW TABLES LIKE 'CRICKET_AGENT_EVAL_CASES' IN SCHEMA" | jq -r '.[0].comment // ""')"
+if [[ "$stored" != "eval_cases.sql ${cases_hash}" ]]; then
+  echo "Rebuilding eval cases and dataset (eval_cases.sql changed)"
   snow_sql -f "$cases" >/dev/null
+  snow_sql -q "COMMENT ON TABLE CRICKET_AGENT_EVAL_CASES IS 'eval_cases.sql ${cases_hash}'" >/dev/null
 fi
 
 snow_sql -q "PUT 'file://${config}' @AGENT_EVAL_CONFIG AUTO_COMPRESS = FALSE OVERWRITE = TRUE" >/dev/null
@@ -76,7 +77,7 @@ if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
   {
     echo "## Agent evals started"
     echo
-    echo "Run \`${run_name}\` is scoring in Snowflake. Results: Snowsight → AI & ML → Agents → CRICKET_SCORECARDS_ANALYST_EVAL → Evaluations."
+    echo "Run \`${run_name}\` is scoring in Snowflake. Results: Snowsight → AI & ML → Agents → CRICKET_SCORECARDS_ANALYST → Evaluations."
   } >> "$GITHUB_STEP_SUMMARY"
 fi
 
@@ -102,7 +103,7 @@ if [[ "$wait" == true ]]; then
   snow_sql --format json -q "
     WITH d AS (
       SELECT * FROM TABLE(SNOWFLAKE.LOCAL.GET_AI_EVALUATION_DATA(
-        CURRENT_DATABASE(), CURRENT_SCHEMA(), 'CRICKET_SCORECARDS_ANALYST_EVAL', 'CORTEX AGENT', '${run_name}'))
+        CURRENT_DATABASE(), CURRENT_SCHEMA(), 'CRICKET_SCORECARDS_ANALYST', 'CORTEX AGENT', '${run_name}'))
     ), rec AS (
       SELECT record_id, ANY_VALUE(duration_ms) AS ms, ANY_VALUE(total_input_tokens) AS tok
       FROM d GROUP BY record_id

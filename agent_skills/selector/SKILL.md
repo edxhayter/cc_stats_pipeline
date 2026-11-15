@@ -25,6 +25,9 @@ many of the last five matches they filled it).
 
 ## 3. Gather the evidence (cricket_scorecards_analyst)
 
+Ask for everything below in as few analyst queries as possible — ideally
+one or two — rather than one query per item.
+
 For the incumbent and every realistic alternative (players from the same
 team who have batted in that part of the order, bowled in that format or
 kept wicket):
