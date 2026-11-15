@@ -18,7 +18,9 @@
 # Both agents render the same spec (agent_spec.yaml.tftpl): instructions,
 # tools and the orchestration model live there and in git, nowhere else.
 # To try a change, edit it on a branch and apply it to the twin only:
-#   terraform apply -target='snowflake_cortex_agent.cricket_scorecards_analyst["eval"]'
+#   terraform apply \
+#     -target='snowflake_cortex_agent.cricket_scorecards_analyst["eval"]' \
+#     -target=snowflake_execute.eval_agent_skill_file
 # then run evals/cortex_agent/run_eval.sh (runs are named after the commit).
 # Merging promotes it: the next full apply from main updates the live agent.
 # Until then, a full apply from main puts the twin back on main's spec.
@@ -61,9 +63,9 @@ resource "snowflake_cortex_agent" "cricket_scorecards_analyst" {
     orchestration_model = null
     semantic_view       = "${var.snowflake_database_name}.${each.value.schema}.SV_CRICKET_SCORECARDS"
     warehouse           = var.snowflake_warehouse_name
-    # Every agent_skills/<name>/SKILL.md in the repo, read from this agent's
-    # own skills stage (agent_skills.tf).
-    skills       = sort([for f in fileset("${path.module}/../../../agent_skills", "*/SKILL.md") : dirname(f)])
+    # Every skill folder in agent_skills/, read from this agent's own skills
+    # stage (agent_skills.tf).
+    skills       = local.skill_names
     skills_stage = "@${var.snowflake_database_name}.${each.value.schema}.${snowflake_stage.agent_skills[each.key].name}"
   })
 }

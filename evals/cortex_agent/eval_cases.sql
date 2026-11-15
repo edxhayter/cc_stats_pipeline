@@ -25,7 +25,8 @@
 --   web_context      — real-world background and pre-simulation history via
 --                      web search, labelled and kept separate. Web content
 --                      changes, so these expect behaviour, not exact text
---   skill            — player-profile, match-report and selector skills
+--   skill            — player-profile, match-report, selector (each with an
+--                      HTML dashboard) and match-journalism skills
 --   out_of_scope     — data the scorecards don't contain; the agent should
 --                      say so and not call the tool
 
@@ -151,17 +152,22 @@ FROM VALUES
 
     ('skill_player_profile', 'skill',
      $$Give me a player profile of B Kellaway.$$,
-     $${"ground_truth_output": "A profile with the simulated season and real-world background in separate, labelled sections. 2026 simulated season for Glamorgan: 20 matches, 681 runs with 24 dismissals (average about 28.4), 54 wickets at an economy of about 4.82, pooled batting Match Factor about 0.90 and pooled bowling Match Factor about 0.92, explained as slightly below the match average. Real-world background from the web: Ben Kellaway, a Glamorgan all-rounder known for bowling spin with either arm. No real-world figures may be mixed into the simulated-season section.",
-        "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}, {"tool_name": "web_search"}]}$$),
+     $${"ground_truth_output": "An HTML dashboard of the simulated season with written real-world background alongside, in separate, labelled sections. 2026 simulated season for Glamorgan: 20 matches, 681 runs with 24 dismissals (average about 28.4), 54 wickets at an economy of about 4.82, pooled batting Match Factor about 0.90 and pooled bowling Match Factor about 0.92, explained as slightly below the match average. Real-world background from the web: Ben Kellaway, a Glamorgan all-rounder known for bowling spin with either arm. No real-world figures may be mixed into the simulated-season section.",
+        "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}, {"tool_name": "web_search"}, {"tool_name": "code_execution"}]}$$),
 
     ('skill_match_report', 'skill',
      $$Write a match report for Hampshire v Glamorgan on 1 May 2026.$$,
-     $${"ground_truth_output": "Hampshire beat Glamorgan by 135 runs in the first-class league. Hampshire made 733 runs for 19 wickets across their two innings; Glamorgan made 598 for 20. F Middleton was man of the match with 175 runs (69 and 106), a batting Match Factor of about 2.20. Key partnerships: 111 for Hampshire's 7th wicket in the first innings and an opening stand of 144 in the second. Innings must be kept separate. The report must not mention or guess the toss, venue or weather.",
-        "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}]}$$),
+     $${"ground_truth_output": "An HTML match dashboard plus a written summary. Hampshire beat Glamorgan by 135 runs in the first-class league. Hampshire made 733 runs for 19 wickets across their two innings; Glamorgan made 598 for 20. F Middleton was man of the match with 175 runs (69 and 106), a batting Match Factor of about 2.20. Key partnerships: 111 for Hampshire's 7th wicket in the first innings and an opening stand of 144 in the second. Innings must be kept separate. The report must not mention or guess the toss, venue or weather.",
+        "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}, {"tool_name": "code_execution"}]}$$),
 
     ('skill_selector', 'skill',
      $$Who should open the batting for Hampshire in their next T20?$$,
-     $${"ground_truth_output": "Presents a recommended option, the incumbents and other options. The incumbents are T Albert and J Vince, who opened in Hampshire's most recent T20 (17 July 2026) and through the season. T Albert: 271 runs in 13 innings, average about 20.8, strike rate about 166. J Vince: 209 runs in 14 innings, average about 14.9, strike rate about 125. It should note that T Albert also keeps wicket (he has stumpings), so dropping him affects team balance, and offer options for different conditions for the selector to weigh. All figures must come from the simulated season.",
+     $${"ground_truth_output": "An HTML selection dashboard plus a written recommendation presenting a recommended option, the incumbents and other options. The incumbents are T Albert and J Vince, who opened in Hampshire's most recent T20 (17 July 2026) and through the season. T Albert: 271 runs in 13 innings, average about 20.8, strike rate about 166. J Vince: 209 runs in 14 innings, average about 14.9, strike rate about 125. It should note that T Albert also keeps wicket (he has stumpings), so dropping him affects team balance, and offer options for different conditions for the selector to weigh. All figures must come from the simulated season.",
+        "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}, {"tool_name": "code_execution"}]}$$),
+
+    ('skill_journalism', 'skill',
+     $$Write a newspaper report of Hampshire v Glamorgan on 1 May 2026.$$,
+     $${"ground_truth_output": "A broadsheet-style match report in Markdown: a headline that makes a judgement, an italic standfirst, a generic byline and dateline, several paragraphs of measured, analytical prose without hyperbole, and a scores-in-brief line. Facts: Hampshire beat Glamorgan by 135 runs in the first-class league; Hampshire 733 for 19 across two innings, Glamorgan 598 for 20; F Middleton man of the match with 175 runs (69 and 106). It must not invent quotes, the toss, the venue or the weather, and must not be signed as or attributed to a real journalist.",
         "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}]}$$),
 
     ('toss', 'out_of_scope',

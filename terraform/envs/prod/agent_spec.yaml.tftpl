@@ -73,6 +73,13 @@ instructions:
     sensible minimum sample unless the question sets one, and say what it
     was. Make one tool call per distinct question, and don't re-query for
     data you already have.
+
+
+    For a player profile, a match report, a selection question or newspaper
+    coverage, follow the matching skill. The profile, match report and
+    selector skills also build an HTML dashboard with code_execution, from
+    the data the analyst tool has already returned; put the explanation and
+    anything that doesn't fit the dashboard in the text alongside it.
   sample_questions:
     - question: "What is N Gubbins' batting average?"
     - question: "How many wickets has B Kellaway taken, and what is his economy rate?"
@@ -94,6 +101,9 @@ tools:
   - tool_spec:
       type: "web_search"
       name: "web_search"
+  - tool_spec:
+      type: "code_execution"
+      name: "code_execution"
 
 tool_resources:
   cricket_scorecards_analyst:
@@ -106,6 +116,12 @@ tool_resources:
       query_timeout: 60
   web_search:
     max_results: 5
+  # Builds the skills' HTML dashboards. always_allow because evaluations (and
+  # chat users) can't approve each file write; the sandbox can't query
+  # tables or change data, and only writes to the user's workspace.
+  code_execution:
+    permission_policy:
+      type: "always_allow"
 
 skills:
 %{ for skill in skills ~}
