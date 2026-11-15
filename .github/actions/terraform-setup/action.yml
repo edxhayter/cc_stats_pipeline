@@ -1,0 +1,40 @@
+name: Terraform setup
+description: >
+  Assume an AWS role via OIDC, write the Snowflake key for the provider,
+  and run terraform init against the S3 backend. Expects the TF_VAR_* and
+  SNOWFLAKE_PRIVATE_KEY env vars set by the calling workflow.
+
+inputs:
+  aws-role-arn:
+    description: IAM role to assume (plan or apply role from ci.tf)
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ inputs.aws-role-arn }}
+        aws-region: ${{ vars.AWS_REGION }}
+
+    - uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.14.7
+        terraform_wrapper: false
+
+    # The provider reads the key from a file (var.snowflake_private_key_path).
+    - name: Write Snowflake key
+      shell: bash
+      run: |
+        umask 077
+        printf '%s\n' "$SNOWFLAKE_PRIVATE_KEY" > "$RUNNER_TEMP/snowflake_key.p8"
+        echo "TF_VAR_snowflake_private_key_path=$RUNNER_TEMP/snowflake_key.p8" >> "$GITHUB_ENV"
+
+    - name: terraform init
+      shell: bash
+      working-directory: terraform/envs/prod
+      run: |
+        terraform init -input=false \
+          -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+          -backend-config="key=${{ vars.TF_STATE_KEY }}" \
+          -backend-config="region=${{ vars.AWS_REGION }}"

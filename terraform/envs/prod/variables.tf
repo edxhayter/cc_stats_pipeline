@@ -91,6 +91,42 @@ variable "tags" {
   }
 }
 
+# --- CI/CD (see ci.tf) ----------------------------------------------------------
+
+variable "github_repository" {
+  description = "GitHub owner/repo the CI OIDC roles trust"
+  type        = string
+  default     = "edxhayter/cc_stats_pipeline"
+}
+
+variable "create_github_oidc_provider" {
+  description = "Create the GitHub OIDC provider in this AWS account. Set false if one already exists (it's one per account)."
+  type        = bool
+  default     = true
+}
+
+variable "tf_state_bucket_name" {
+  description = "S3 bucket holding Terraform state (same value as backend.hcl `bucket`)"
+  type        = string
+}
+
+variable "tf_state_key_prefix" {
+  description = "Key prefix of this project's state within the state bucket"
+  type        = string
+  default     = "cricket-scorecards/"
+}
+
+variable "ci_snowflake_user_name" {
+  description = "Snowflake service user GitHub Actions authenticates as"
+  type        = string
+  default     = "CC_STATS_GITHUB_ACTIONS"
+}
+
+variable "ci_snowflake_rsa_public_key" {
+  description = "Public key (PEM body, no header/footer lines) for the CI service user. The private half goes in the SNOWFLAKE_PRIVATE_KEY GitHub secret only."
+  type        = string
+}
+
 variable "snowflake_load_task_started" {
   description = "Run the scorecard load task on its daily schedule. Off while loads are triggered by hand (EXECUTE TASK)."
   type        = bool

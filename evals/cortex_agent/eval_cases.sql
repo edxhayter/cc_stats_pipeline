@@ -1,9 +1,11 @@
 -- Cortex Agent evaluation dataset for CRICKET_SCORECARDS_ANALYST.
 --
--- Run once per dataset version, in the same database/schema as the agent
--- (the semantic schema — see var.snowflake_semantic_schema). Snowflake
--- datasets are immutable: after changing any row below, bump the version
--- suffix in BOTH the CALL at the bottom and agent_evaluation_config.yaml.
+-- Runs with the agent's schema (var.snowflake_semantic_schema) as the
+-- current schema. The deploy workflow runs this automatically whenever the
+-- dataset version named in agent_evaluation_config.yaml doesn't exist yet;
+-- to run by hand, USE SCHEMA first. Snowflake datasets are immutable: after
+-- changing any row below, bump the version suffix in BOTH the CALL at the
+-- bottom and agent_evaluation_config.yaml, and the next run recreates it.
 --
 -- Ground truth was taken from the dev marts with the full 173-match 2026
 -- season loaded (2026-04-03 to 2026-06-28). Single-match cases are stable;
@@ -15,9 +17,6 @@
 --   held_out_*       — no verified query covers it; tests generalisation
 --   out_of_scope     — data the scorecards don't contain; the agent should
 --                      say so and not call the tool
-
-SET agent_schema_fqn = '<DATABASE>.<SEMANTIC_SCHEMA>';  -- same schema as the agent
-USE SCHEMA IDENTIFIER($agent_schema_fqn);
 
 CREATE OR REPLACE TABLE cricket_agent_eval_cases (
     case_id      VARCHAR,

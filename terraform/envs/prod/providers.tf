@@ -14,11 +14,14 @@ provider "snowflake" {
   warehouse              = var.snowflake_warehouse_name
 
   # Resources the 2.x provider still treats as preview: the Cortex Agent
-  # (cortex_agent.tf), and the generic file format/stage/storage
-  # integration/table resources used by the ingest module and agent_evals.tf.
+  # (cortex_agent.tf), the generic file format/stage/storage
+  # integration/table resources used by the ingest module and agent_evals.tf,
+  # and the network rule/external access integration in ci.tf.
   preview_features_enabled = [
     "snowflake_cortex_agent_resource",
+    "snowflake_external_access_integration_resource",
     "snowflake_file_format_resource",
+    "snowflake_network_rule_resource",
     "snowflake_stage_resource",
     "snowflake_storage_integration_resource",
     "snowflake_table_resource",

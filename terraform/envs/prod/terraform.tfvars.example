@@ -21,3 +21,8 @@ snowflake_warehouse_name     = "" # existing warehouse, must be UPPERCASE
 # and re-apply.
 # snowflake_storage_aws_iam_user_arn = ""
 # snowflake_storage_aws_external_id  = ""
+
+# --- CI/CD (ci.tf) -------------------------------------------------------------
+tf_state_bucket_name        = "your-terraform-state-bucket" # same as backend.hcl
+ci_snowflake_rsa_public_key = "" # PEM body of the CI key's public half, no BEGIN/END lines
+# create_github_oidc_provider = false # if this AWS account already has one

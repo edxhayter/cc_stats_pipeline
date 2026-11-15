@@ -27,7 +27,7 @@ Two independent pipelines, both triggered on merge to `main`:
 1. **Infra pipeline** — `terraform apply` (S3 backend, native locking) updates AWS + Snowflake objects.
 2. **dbt deploy pipeline** — Snowflake CLI pushes the dbt project into the `DBT PROJECT` object; the next scheduled Task run picks up the new version automatically.
 
-Every MR runs `terraform plan` + `dbt compile/test` (dev schema) first, with output posted for review before merge.
+Every PR runs `terraform plan` (posted to the job summary) and `dbt parse`. After a deploy, the Cortex Agent evals (`evals/cortex_agent/`) are started in Snowflake against the deployed agent; scores are read in Snowsight — report-only. Setup, identities, and the full list of GitHub variables: [docs/cicd.md](docs/cicd.md).
 
 ## Decisions
 
@@ -63,10 +63,10 @@ Every MR runs `terraform plan` + `dbt compile/test` (dev schema) first, with out
 - `snowflake_file_format` (`FIELD_DELIMITER = 'NONE'` — whole line as one column)
 - `snowflake_table` for `CRICKET_SCORECARDS_RAW.SCORECARD_LINES`
 - `snowflake_task` (load task — daily `COPY INTO`)
+- CI/CD identities (`ci.tf`): GitHub OIDC provider + plan/apply roles, Snowflake CI service user, external access integration for `dbt deps`
 
 **Snowflake — planned, not yet built**
 - `snowflake_task` (dbt task — `AFTER` the load task)
-- External access integration (for `dbt deps`)
 - `snowflake_role` + grants (loader / dbt / BI-agent readers, separated)
 
 ## dbt project
@@ -85,7 +85,6 @@ Every MR runs `terraform plan` + `dbt compile/test` (dev schema) first, with out
 
 - Confirm player name consistency across matches before finalizing `dim_player`
 - Build `stg_fow` (multi-line wrap logic)
-- CI/CD auth: OIDC federation for the infra pipeline, Snowflake key-pair service user for the dbt deploy pipeline
 - Cortex Analyst rollout: start narrow (batting/bowling + one team view), expand once accuracy is validated
 
 ## Build order
@@ -97,4 +96,4 @@ Every MR runs `terraform plan` + `dbt compile/test` (dev schema) first, with out
 5. dbt task, chained `AFTER` the load task
 6. Semantic views + Cortex Analyst rollout
 7. BI tool connection
-8. CI/CD pipelines (MR checks, infra apply, dbt deploy)
+8. CI/CD pipelines (PR checks, infra apply, dbt deploy, agent evals) — built, see [docs/cicd.md](docs/cicd.md); needs the one-off bootstrap

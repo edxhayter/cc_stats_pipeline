@@ -1,0 +1,149 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # AWS OIDC
+
+# Never run two deploys at once; queue rather than cancel a half-applied one.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+  TF_VAR_landing_bucket_name: ${{ vars.LANDING_BUCKET_NAME }}
+  TF_VAR_snowflake_organization_name: ${{ vars.SNOWFLAKE_ORGANIZATION_NAME }}
+  TF_VAR_snowflake_account_name: ${{ vars.SNOWFLAKE_ACCOUNT_NAME }}
+  TF_VAR_snowflake_user: ${{ vars.SNOWFLAKE_CI_USER }}
+  TF_VAR_snowflake_role: ${{ vars.SNOWFLAKE_ROLE }}
+  TF_VAR_snowflake_private_passphrase: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE }}
+  TF_VAR_snowflake_database_name: ${{ vars.SNOWFLAKE_DATABASE }}
+  TF_VAR_snowflake_warehouse_name: ${{ vars.SNOWFLAKE_WAREHOUSE }}
+  TF_VAR_snowflake_semantic_schema: ${{ vars.SNOWFLAKE_SEMANTIC_SCHEMA }}
+  TF_VAR_snowflake_storage_aws_iam_user_arn: ${{ vars.SNOWFLAKE_STORAGE_AWS_IAM_USER_ARN }}
+  TF_VAR_snowflake_storage_aws_external_id: ${{ vars.SNOWFLAKE_STORAGE_AWS_EXTERNAL_ID }}
+  TF_VAR_tf_state_bucket_name: ${{ vars.TF_STATE_BUCKET }}
+  TF_VAR_ci_snowflake_user_name: ${{ vars.SNOWFLAKE_CI_USER }}
+  TF_VAR_ci_snowflake_rsa_public_key: ${{ vars.SNOWFLAKE_CI_RSA_PUBLIC_KEY }}
+  SNOWFLAKE_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
+
+jobs:
+  # Infra and dbt are independent failure domains and run in parallel; the
+  # evals need both (agent from Terraform, semantic view from dbt).
+  terraform-apply:
+    name: Terraform apply
+    runs-on: ubuntu-latest
+    environment: production # OIDC trust is bound to this; add required reviewers here
+    defaults:
+      run:
+        working-directory: terraform/envs/prod
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/terraform-setup
+        with:
+          aws-role-arn: ${{ vars.AWS_APPLY_ROLE_ARN }}
+
+      - name: terraform plan
+        run: terraform plan -input=false -no-color -lock-timeout=5m -out=tfplan
+
+      - name: terraform apply
+        run: terraform apply -input=false -no-color -lock-timeout=5m tfplan
+
+  dbt-deploy:
+    name: dbt deploy + build
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      SNOWFLAKE_AUTHENTICATOR: SNOWFLAKE_JWT
+      SNOWFLAKE_ACCOUNT: ${{ vars.SNOWFLAKE_ORGANIZATION_NAME }}-${{ vars.SNOWFLAKE_ACCOUNT_NAME }}
+      SNOWFLAKE_USER: ${{ vars.SNOWFLAKE_CI_USER }}
+      SNOWFLAKE_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
+      SNOWFLAKE_WAREHOUSE: ${{ vars.SNOWFLAKE_WAREHOUSE }}
+      SNOWFLAKE_DATABASE: ${{ vars.SNOWFLAKE_DATABASE }}
+      SNOWFLAKE_SCHEMA: ${{ vars.SNOWFLAKE_SEMANTIC_SCHEMA }}
+      SNOWFLAKE_PRIVATE_KEY_RAW: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
+      PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: snowflakedb/snowflake-actions@v3
+        with:
+          cli-version: "3.28"
+
+      - name: Write dbt profiles
+        run: .github/scripts/write-dbt-profiles.sh
+
+      # The scheduled dbt task (once built) executes this same object.
+      - name: Deploy dbt project object
+        run: |
+          snow dbt deploy CC_SCORECARD_TRANSFORM -x \
+            --source dbt/cc_scorecard_transform \
+            --default-target prod \
+            --dbt-version 1.12.3 \
+            --external-access-integration CC_STATS_DBT_DEPS
+
+      # Build now rather than waiting for the next scheduled run, so the
+      # evals below test the semantic view this merge produced.
+      - name: dbt build
+        run: snow dbt execute -x CC_SCORECARD_TRANSFORM build --target prod
+
+  # Starts an evaluation run in Snowflake and exits without waiting on it.
+  # Scores land in Snowsight under the agent's Evaluations tab; a low score
+  # never fails the deploy. evals/cortex_agent/run_eval.sql reads them by SQL.
+  agent-evals:
+    name: Start agent evals
+    needs: [terraform-apply, dbt-deploy]
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      SNOWFLAKE_AUTHENTICATOR: SNOWFLAKE_JWT
+      SNOWFLAKE_ACCOUNT: ${{ vars.SNOWFLAKE_ORGANIZATION_NAME }}-${{ vars.SNOWFLAKE_ACCOUNT_NAME }}
+      SNOWFLAKE_USER: ${{ vars.SNOWFLAKE_CI_USER }}
+      SNOWFLAKE_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
+      SNOWFLAKE_WAREHOUSE: ${{ vars.SNOWFLAKE_WAREHOUSE }}
+      SNOWFLAKE_DATABASE: ${{ vars.SNOWFLAKE_DATABASE }}
+      SNOWFLAKE_SCHEMA: ${{ vars.SNOWFLAKE_SEMANTIC_SCHEMA }}
+      SNOWFLAKE_PRIVATE_KEY_RAW: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
+      PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE }}
+      EVAL_CONFIG: evals/cortex_agent/agent_evaluation_config.yaml
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: snowflakedb/snowflake-actions@v3
+        with:
+          cli-version: "3.28"
+
+      # Datasets are immutable, so a new _V<n> in the config means a new
+      # dataset to create from eval_cases.sql.
+      - name: Create eval dataset if new
+        run: |
+          dataset=$(sed -n 's/^ *dataset_name: *"\([A-Z0-9_]*\)".*/\1/p' "$EVAL_CONFIG")
+          if ! grep -q "\.${dataset}'" evals/cortex_agent/eval_cases.sql; then
+            echo "::error::eval_cases.sql doesn't create ${dataset}; bump the version in both files together"
+            exit 1
+          fi
+          found=$(snow sql -x --format json -q "SHOW DATASETS LIKE '${dataset}' IN SCHEMA" | jq length)
+          if [ "$found" -eq 0 ]; then
+            echo "Creating dataset ${dataset}"
+            snow sql -x -f evals/cortex_agent/eval_cases.sql
+          else
+            echo "Dataset ${dataset} exists"
+          fi
+
+      - name: Start evaluation
+        run: |
+          run_name="deploy-$(date -u +%Y%m%d-%H%M%S)-${GITHUB_SHA::7}"
+          snow sql -x -q "PUT 'file://${GITHUB_WORKSPACE}/${EVAL_CONFIG}' @AGENT_EVAL_CONFIG AUTO_COMPRESS = FALSE OVERWRITE = TRUE"
+          snow sql -x -q "CALL EXECUTE_AI_EVALUATION('START', OBJECT_CONSTRUCT('run_name', '${run_name}'), '@AGENT_EVAL_CONFIG/agent_evaluation_config.yaml')"
+          {
+            echo "## Agent evals started"
+            echo
+            echo "Run \`${run_name}\` is scoring in Snowflake. Results: Snowsight → AI & ML → Agents → CRICKET_SCORECARDS_ANALYST → Evaluations."
+          } >> "$GITHUB_STEP_SUMMARY"

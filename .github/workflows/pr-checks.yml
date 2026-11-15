@@ -1,0 +1,116 @@
+name: PR checks
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write # AWS OIDC
+
+# Terraform inputs for the plan job. Setup and the full list of repo
+# variables and secrets: docs/cicd.md.
+env:
+  # Mirror terraform.tfvars, which is gitignored
+  TF_IN_AUTOMATION: "true"
+  TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+  TF_VAR_landing_bucket_name: ${{ vars.LANDING_BUCKET_NAME }}
+  TF_VAR_snowflake_organization_name: ${{ vars.SNOWFLAKE_ORGANIZATION_NAME }}
+  TF_VAR_snowflake_account_name: ${{ vars.SNOWFLAKE_ACCOUNT_NAME }}
+  TF_VAR_snowflake_user: ${{ vars.SNOWFLAKE_CI_USER }}
+  TF_VAR_snowflake_role: ${{ vars.SNOWFLAKE_ROLE }}
+  TF_VAR_snowflake_private_passphrase: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE }}
+  TF_VAR_snowflake_database_name: ${{ vars.SNOWFLAKE_DATABASE }}
+  TF_VAR_snowflake_warehouse_name: ${{ vars.SNOWFLAKE_WAREHOUSE }}
+  TF_VAR_snowflake_semantic_schema: ${{ vars.SNOWFLAKE_SEMANTIC_SCHEMA }}
+  TF_VAR_snowflake_storage_aws_iam_user_arn: ${{ vars.SNOWFLAKE_STORAGE_AWS_IAM_USER_ARN }}
+  TF_VAR_snowflake_storage_aws_external_id: ${{ vars.SNOWFLAKE_STORAGE_AWS_EXTERNAL_ID }}
+  TF_VAR_tf_state_bucket_name: ${{ vars.TF_STATE_BUCKET }}
+  TF_VAR_ci_snowflake_user_name: ${{ vars.SNOWFLAKE_CI_USER }}
+  TF_VAR_ci_snowflake_rsa_public_key: ${{ vars.SNOWFLAKE_CI_RSA_PUBLIC_KEY }}
+  SNOWFLAKE_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
+
+jobs:
+  terraform-plan:
+    name: Terraform plan
+    runs-on: ubuntu-latest
+    concurrency:
+      group: terraform-plan-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    defaults:
+      run:
+        working-directory: terraform/envs/prod
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/terraform-setup
+        with:
+          aws-role-arn: ${{ vars.AWS_PLAN_ROLE_ARN }}
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive ../..
+
+      - name: terraform validate
+        run: terraform validate -no-color
+
+      - name: terraform plan
+        run: |
+          set -o pipefail
+          terraform plan -input=false -no-color -lock-timeout=5m | tee "$RUNNER_TEMP/plan.txt"
+
+      - name: Publish plan
+        if: always()
+        run: |
+          {
+            echo "## Terraform plan"
+            echo
+            grep -E '^(Plan:|No changes\.)' "$RUNNER_TEMP/plan.txt" || echo "Plan did not complete."
+            echo
+            echo "<details><summary>Full plan</summary>"
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/plan.txt"
+            echo '```'
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  dbt-parse:
+    name: dbt parse
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dbt/cc_scorecard_transform
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install "dbt-core~=1.12.0" "dbt-snowflake~=1.12.0"
+
+      # Parse never connects, so the profile only has to be well-formed.
+      - name: Write placeholder profile
+        run: |
+          mkdir -p "$RUNNER_TEMP/dbt"
+          cat > "$RUNNER_TEMP/dbt/profiles.yml" <<'YAML'
+          cc_scorecard_transform:
+            target: ci
+            outputs:
+              ci:
+                type: snowflake
+                account: parse-only
+                user: parse-only
+                database: PARSE_ONLY
+                warehouse: PARSE_ONLY
+                schema: PARSE_ONLY
+          YAML
+
+      # Catches broken Jinja, refs, YAML and tests without touching
+      # Snowflake. Models and tests run for real in deploy.yml on merge.
+      - run: dbt deps
+        env:
+          DBT_PROFILES_DIR: ${{ runner.temp }}/dbt
+      - run: dbt parse --no-partial-parse
+        env:
+          DBT_PROFILES_DIR: ${{ runner.temp }}/dbt
