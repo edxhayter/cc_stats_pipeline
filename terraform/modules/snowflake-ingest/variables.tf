@@ -70,6 +70,12 @@ variable "load_task_schedule" {
   default     = "0 3 * * * UTC"
 }
 
+variable "load_task_started" {
+  description = "Whether the load task runs on its schedule (true) or stays suspended (false)"
+  type        = bool
+  default     = true
+}
+
 variable "snowflake_storage_aws_iam_user_arn" {
   description = <<-EOT
     ARN of the IAM user Snowflake uses to assume the storage integration role.

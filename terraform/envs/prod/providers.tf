@@ -13,7 +13,14 @@ provider "snowflake" {
   private_key_passphrase = var.snowflake_private_passphrase
   warehouse              = var.snowflake_warehouse_name
 
-  # Required for snowflake_cortex_agent (see cortex_agent.tf) — that
-  # resource is a preview feature in the provider as of this writing.
-  preview_features_enabled = ["snowflake_cortex_agent_resource"]
+  # Resources the 2.x provider still treats as preview: the Cortex Agent
+  # (cortex_agent.tf), and the generic file format/stage/storage
+  # integration/table resources used by the ingest module and agent_evals.tf.
+  preview_features_enabled = [
+    "snowflake_cortex_agent_resource",
+    "snowflake_file_format_resource",
+    "snowflake_stage_resource",
+    "snowflake_storage_integration_resource",
+    "snowflake_table_resource",
+  ]
 }
