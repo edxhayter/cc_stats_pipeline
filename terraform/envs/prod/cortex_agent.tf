@@ -14,6 +14,15 @@
 # `eval` reads the semantic view the dbt `eval` target builds over a frozen
 # clone of the raw data (see agent_evals.tf), so eval ground truth never
 # drifts. Keeping both in one for_each means they can't diverge by accident.
+#
+# Both agents render the same spec (agent_spec.yaml.tftpl): instructions,
+# tools and the orchestration model live there and in git, nowhere else.
+# To try a change, edit it on a branch and apply it to the twin only:
+#   terraform apply -target='snowflake_cortex_agent.cricket_scorecards_analyst["eval"]'
+# then run evals/cortex_agent/run_eval.sh (runs are named after the commit).
+# Merging promotes it: the next full apply from main updates the live agent.
+# Until then, a full apply from main puts the twin back on main's spec.
+# Results per stage: evals/cortex_agent/results.md.
 
 locals {
   cortex_agents = {
@@ -47,46 +56,10 @@ resource "snowflake_cortex_agent" "cricket_scorecards_analyst" {
     display_name = each.value.display_name
   }
 
-  # models omitted deliberately — uses Snowflake's current default
-  # orchestration model rather than pinning one that needs updating as
-  # models change.
-  specification = <<-YAML
-    instructions:
-      response: >
-        You are a cricket statistics analyst. Answer questions using only
-        the cricket_scorecards_analyst tool (backed by the
-        SV_CRICKET_SCORECARDS semantic view) — do not speculate about
-        data that isn't modeled there
-        (there is no toss, venue, or ball-by-ball detail in this dataset;
-        say so explicitly if asked about any of that, rather than
-        guessing). Always cite specific numbers and name the player,
-        team, or match the answer refers to.
-      sample_questions:
-        - question: "What is N Gubbins' batting average?"
-        - question: "How many wickets has B Kellaway taken, and what is his economy rate?"
-        - question: "Who won the match between Hampshire and Glamorgan on 1 May 2026, and who was man of the match?"
-        - question: "What was F Middleton's batting Match Factor on 1 May 2026?"
-        - question: "What was B Kellaway's bowling Match Factor on 1 May 2026?"
-        - question: "What were Hampshire's batting partnerships on 1 May 2026?"
-        - question: "How many catches and stumpings has F Middleton taken?"
-        - question: "Who are the top 10 all-rounders, combining batting and bowling Match Factor, among players who batted and bowled in at least 5 matches?"
-
-    tools:
-      - tool_spec:
-          type: "cortex_analyst_text_to_sql"
-          name: "cricket_scorecards_analyst"
-          description: >
-            Answers questions about cricket match, batting, and bowling
-            statistics using the cricket scorecards semantic view.
-
-    tool_resources:
-      cricket_scorecards_analyst:
-        semantic_view: "${var.snowflake_database_name}.${each.value.schema}.SV_CRICKET_SCORECARDS"
-        # Required outside Snowsight: evaluations and API calls have no
-        # session warehouse for the generated SQL to run on.
-        execution_environment:
-          type: "warehouse"
-          warehouse: "${var.snowflake_warehouse_name}"
-          query_timeout: 60
-  YAML
+  specification = templatefile("${path.module}/agent_spec.yaml.tftpl", {
+    # null omits `models`, so Snowflake picks the model (`auto`).
+    orchestration_model = null
+    semantic_view       = "${var.snowflake_database_name}.${each.value.schema}.SV_CRICKET_SCORECARDS"
+    warehouse           = var.snowflake_warehouse_name
+  })
 }

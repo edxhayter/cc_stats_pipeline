@@ -96,6 +96,21 @@ if [[ "$wait" == true ]]; then
     fi
     sleep "$poll_seconds"
   done
+
+  # Scores per metric, plus speed and size per question (duration and tokens
+  # repeat across a record's metric rows, so take one per record).
+  snow_sql --format json -q "
+    WITH d AS (
+      SELECT * FROM TABLE(SNOWFLAKE.LOCAL.GET_AI_EVALUATION_DATA(
+        CURRENT_DATABASE(), CURRENT_SCHEMA(), 'CRICKET_SCORECARDS_ANALYST_EVAL', 'CORTEX AGENT', '${run_name}'))
+    ), rec AS (
+      SELECT record_id, ANY_VALUE(duration_ms) AS ms, ANY_VALUE(total_input_tokens) AS tok
+      FROM d GROUP BY record_id
+    )
+    SELECT metric_name AS measure, ROUND(AVG(eval_agg_score), 3) AS value FROM d GROUP BY 1
+    UNION ALL SELECT 'avg_seconds_per_question', ROUND(AVG(ms) / 1000, 1) FROM rec
+    UNION ALL SELECT 'avg_input_tokens_per_question', ROUND(AVG(tok)) FROM rec
+    ORDER BY 1" | jq -r '.[] | "  \(.MEASURE): \(.VALUE)"'
 fi
 
 echo "$run_name"
