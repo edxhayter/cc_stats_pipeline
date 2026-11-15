@@ -69,7 +69,10 @@ select
             then (m.match_top6_runs - p.own_runs)::float / (m.match_top6_dismissals - p.own_dismissals)
     end as peer_batting_average,
     case
+        -- Peer runs must be > 0 too: a peer pool all out for ducks has a
+        -- 0 average, and dividing by it fails.
         when (m.match_top6_dismissals - p.own_dismissals) > 0
+            and (m.match_top6_runs - p.own_runs) > 0
             then
                 (case when p.own_dismissals > 0 then p.own_runs::float / p.own_dismissals else p.own_runs end)
                 / ((m.match_top6_runs - p.own_runs)::float / (m.match_top6_dismissals - p.own_dismissals))
