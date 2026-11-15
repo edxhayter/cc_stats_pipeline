@@ -1,9 +1,11 @@
 -- Cortex Agent evaluation dataset for CRICKET_SCORECARDS_ANALYST_EVAL.
 --
--- Run once per dataset version, in CRICKET_SCORECARDS_EVAL (the eval twin's
--- schema). Snowflake datasets are immutable: after changing any row below,
--- bump the version suffix in BOTH the CALL at the bottom and
--- agent_evaluation_config.yaml.
+-- Runs once per dataset version, with CRICKET_SCORECARDS_EVAL (the eval
+-- twin's schema) as the current schema. run_eval.sh does this automatically
+-- when the dataset named in agent_evaluation_config.yaml doesn't exist yet;
+-- to run it by hand, USE SCHEMA first. Snowflake datasets are immutable:
+-- after changing any row below, bump the version suffix in BOTH the CALL at
+-- the bottom and agent_evaluation_config.yaml.
 --
 -- Ground truth comes from the eval marts only: the dbt `eval` target built
 -- over the frozen snapshot in fixture.sql (235 matches, 3 April to 18 July
@@ -20,9 +22,6 @@
 --                      (initial + surname), including ambiguous surnames
 --   out_of_scope     — data the scorecards don't contain; the agent should
 --                      say so and not call the tool
-
-SET agent_schema_fqn = '<DATABASE>.CRICKET_SCORECARDS_EVAL';  -- the eval twin's schema
-USE SCHEMA IDENTIFIER($agent_schema_fqn);
 
 CREATE OR REPLACE TABLE cricket_agent_eval_cases (
     case_id      VARCHAR,

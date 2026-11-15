@@ -16,7 +16,8 @@ agent.
 | `fixture.sql` | One-off zero-copy clone of the raw scorecard lines into `CRICKET_SCORECARDS_EVAL_RAW` |
 | `eval_cases.sql` | Eval table + 21 cases with ground truth, then creates dataset `CRICKET_AGENT_EVALSET_V1` |
 | `agent_evaluation_config.yaml` | Which agent, which dataset, which metrics |
-| `run_eval.sql` | Upload config, start a run, poll, read results |
+| `run_eval.sh` | Starts a run: creates the dataset if new, uploads the config, names the run from git, optionally waits |
+| `run_eval.sql` | Reads a run's status, per-case scores and errors |
 | `../../terraform/envs/prod/agent_evals.tf` | Eval schemas, stage + file format the config is read from |
 | `../../terraform/envs/prod/cortex_agent.tf` | Live agent and its eval twin |
 
@@ -64,14 +65,22 @@ not an average of per-match factors.
    (one-off).
 2. Run `fixture.sql` once to take the snapshot, then
    `dbt build --target eval`.
-3. Run `eval_cases.sql` once (set `agent_schema_fqn` at the top).
-4. Run `run_eval.sql` from SnowSQL or the Snowflake CLI (`PUT` needs a
-   client). Re-run step 4 on any agent or semantic view change, after
+3. Start a run with `run_eval.sh` (needs the Snowflake CLI and `jq`):
+   ```sh
+   SNOWFLAKE_DATABASE=<db> evals/cortex_agent/run_eval.sh --label baseline --wait -- -c <connection>
+   ```
+   It creates the dataset from `eval_cases.sql` the first time, uploads
+   the config, and names the run `<label>-<git sha>-<UTC timestamp>`
+   (with `-dirty` if there are uncommitted changes), so every score traces
+   back to the code that produced it. Arguments after `--` go to every
+   `snow sql` call. Without `--wait` it returns once the run has started.
+4. Read the results in Snowsight, or with `run_eval.sql` using the printed
+   run name. Re-run step 3 on any agent or semantic view change, after
    rebuilding the eval target.
 
-**Changing cases:** datasets are immutable. Edit the rows, bump `_V1` →
-`_V2` in both `eval_cases.sql` and `agent_evaluation_config.yaml`, rerun
-step 3.
+**Changing cases:** datasets are immutable. Edit the rows and bump `_V1` →
+`_V2` in both `eval_cases.sql` and `agent_evaluation_config.yaml`; the next
+`run_eval.sh` creates the new dataset.
 
 **New snapshot:** only deliberately. Re-run `fixture.sql` (replacing the
 clone), rebuild the eval target, re-derive every answer from the eval
