@@ -171,7 +171,7 @@ alone.
 | `sixes` | number | measure — **summable** | |
 | `strike_rate` | number | measure — **non-additive** | `runs / balls_faced × 100`; must be recomputed from summed runs/balls at query time, never summed/averaged directly across rows |
 | `pct_of_team_innings_runs` | number | measure — **non-additive** | `runs / int_innings_totals.total_runs` for that team-innings; recompute at query time from summed components, don't average the column |
-| `batting_match_factor` | number, nullable | measure — **avg or sum over a period** (see Match Factor section) | |
+| `batting_match_factor` | number, nullable | measure — **per match only**; over a period use the pooled metric (see Match Factor section) | |
 
 ### `fact_bowling`
 
@@ -192,7 +192,7 @@ Grain: bowler × team-innings × match.
 | `wickets` | number | measure — **summable** | |
 | `economy` | number | measure — **non-additive** | `runs_conceded / overs_as_decimal`; recompute from summed components, don't average the column directly |
 | `pct_of_team_innings_wickets` | number | measure — **non-additive** | `wickets / int_innings_totals.wickets_lost` for the opposition's innings; recompute at query time, don't average the column |
-| `bowling_match_factor` | number, nullable | measure — **avg or sum over a period** | NULL for wicketless matches, see Match Factor section |
+| `bowling_match_factor` | number, nullable | measure — **per match only**; over a period use the pooled metric | blended own average; NULL for wicketless matches, see Match Factor section |
 
 ### `fact_fow`
 
@@ -370,30 +370,62 @@ the semantic layer (see below), not by pre-baking a rollup grain into the mart.
 - Player excluded from the peer-group denominator to avoid circularity.
 - Edge case: player not out in every innings they played (zero dismissals)
   → use total runs as the batting-average stand-in for that match.
+- Edge case: peer pool has no dismissals, or no runs (every other top-6
+  batter out for a duck) → **NULL**; the peer average is the divisor.
 
 **Bowling Match Factor** (per player, per match):
 ```
-  (sum of other bowlers' runs conceded in this match, excluding the player
-     ÷ sum of their wickets, excluding the player)
+  peer average = other bowlers' runs conceded in this match, excluding the player
+                 ÷ their wickets, excluding the player
+
+  (peer average)
   ÷
-  (player's runs conceded in this match ÷ player's wickets in this match)
+  ((player's runs conceded + peer average) ÷ (player's wickets + 1))
 ```
 - Higher = better for both metrics (ratio orientation is inverted between
   batting and bowling specifically so "higher is better" holds for both).
+- **Why the blend:** the player's own average gets one extra wicket at the
+  peer average. The original unblended ratio (peer average ÷ own average)
+  divided by zero on a wickets-for-no-runs spell (J Fuller, 1-0-0-3) and
+  turned one cheap wicket into an outlier (J Smith, 1 wicket for 3 runs,
+  factor 13.4). With the blend, Fuller's 3-0 rates 4.0 — the best spell in
+  the 2026 season — and a single cheap wicket lands near 2. Across all
+  bowling performances the median barely moves (1.10 → 1.07) while the 95th
+  percentile falls from 3.82 to 2.26. The factor can't exceed own
+  wickets + 1. Flooring the runs (e.g. 0.1) was rejected: it fixes only the
+  zero-run case and makes Fuller ~400.
 - Edge case: player took zero wickets in the match → **NULL** the factor
-  for that match (undefined, not zero) — this also means it's correctly
-  excluded when later averaged/summed, rather than dragging the rollup
-  down with an artificial zero.
+  for that match (undefined, not zero). Also NULL if the peer pool took no
+  wickets or conceded no runs.
 - Discipline segmentation (pace vs. spin peer groups) — **deferred for v1**.
   Not present in source data; would need a maintained seed CSV mapping
   player → bowling style. Revisit if the undifferentiated peer group proves
   too noisy.
 
-**Where this lives:** computed once at match grain in the marts layer,
-then exposed as a base measure in the Snowflake Semantic View so Cortex
-Analyst (or any BI consumer) can aggregate it over whatever period a
-question implies — season, competition, career — without that grain
-being fixed in the mart itself.
+**Over a period: pooled, not averaged.** Averaging the per-match factors
+lets a one-over cameo count as much as a full workload. Instead,
+`fact_player_match_summary` carries each match's ingredients (`mf_bat_*`:
+own/peer runs and dismissals; `mf_bowl_*`: own/peer runs conceded and
+wickets — the peer group still excludes the player, at match grain), and
+the semantic view pools them over whatever slice a question implies
+(season, competition, format, opposition, career):
+```
+  pooled bowling = P ÷ ((Σ own runs conceded + P) ÷ (Σ own wickets + 1)),
+                   P = Σ peer runs conceded ÷ Σ peer wickets
+  pooled batting = ((Σ own runs + Q) ÷ (Σ own dismissals + 1)) ÷ Q,
+                   Q = Σ peer runs ÷ Σ peer dismissals
+```
+The same +1 blend means a one-match period reproduces the per-match bowling
+factor and a period of a wicket or two stays finite; over a season its
+effect fades. Pooled bowling is NULL with no wickets in the period, and it
+counts wicketless matches (their runs conceded), which a per-match average
+silently dropped. Metrics: `pooled_batting_match_factor`,
+`pooled_bowling_match_factor`, and `all_rounder_composite` (their sum).
+`STDDEV` of the per-match factors stays as the consistency measure.
+
+The per-match batting factor still uses the original stand-in for
+never-dismissed players; whether to move it onto the same blend is open
+(see Open items).
 
 ## Conventions
 
@@ -435,6 +467,10 @@ approach trustworthy rather than "looks right on three sample files":
 - Bowling Match Factor's pace/spin discipline split is deferred (see above).
 - Season/competition rollup grain for Match Factor (and other rolling
   aggregates) is intentionally left to the semantic layer, not fixed here.
+  Match Factor is pooled there from per-match ingredients (see above).
+- Per-match batting Match Factor: decide whether to replace the
+  never-dismissed stand-in (total runs) with the same +1 blend as bowling.
+  Nothing breaks today; it would align the per-match and pooled values.
 - `int_partnerships`' batting-order simulation will need explicit
   retired-hurt handling — confirmed to occur (1 of 173 files), not just a
   hypothetical risk (see above). Not yet built.
@@ -541,6 +577,9 @@ partnerships needed `team_innings_number` exposed as a dimension (a
 first-class match has two partnership #1s per team), and the all-rounder
 ranking needed a minimum-sample filter (`HAVING COUNT(*) >= 5`) — without
 it the top spots were single-match outliers (bowling Match Factor 13+).
+The all-rounder query has since moved to pooled Match Factor (see Advanced
+metrics: Match Factor), which removes those outliers at source; the
+five-match minimum stays as a sample-size rule.
 More should be added as real usage surfaces the question shapes people
 actually ask.
 

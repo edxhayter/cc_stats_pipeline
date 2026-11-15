@@ -117,8 +117,9 @@ models:
                 field: player_id
       - name: bowling_match_factor
         description: >
-          NULL for bowlers who took zero wickets in the match — see
-          int_bowling_match_factor.
+          Blended per-match factor; NULL for bowlers who took zero wickets
+          in the match — see int_bowling_match_factor. Don't average it over
+          a period: use the semantic view's pooled_bowling_match_factor.
 
   - name: fact_fow
     description: "Grain: wicket x team-innings x match."
@@ -209,6 +210,12 @@ models:
       took 5 wickets total across two innings (2+3) but neither innings
       alone reached 5, correctly showing 0.
     columns:
+      - name: mf_bat_own_runs
+        description: >
+          Match Factor ingredients (mf_bat_*, mf_bowl_*): the player's own and
+          peer runs/dismissals/wickets for this match, from the int_ Match
+          Factor models. The semantic view pools them into a Match Factor
+          over any period. Batting ingredients exist for top-6 batters only.
       - name: match_id
         tests:
           - not_null

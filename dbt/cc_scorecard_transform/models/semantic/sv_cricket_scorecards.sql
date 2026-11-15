@@ -22,11 +22,18 @@
 -- total_overs_naive / economy_rate are approximations, not exact. Refine
 -- later by converting to total balls bowled.
 --
--- all_rounder_composite is AVG(batting_match_factor) + AVG(bowling_match_factor)
--- — a simple sum since both factors are already peer-normalized to 1.0 =
--- average, so >2.0 reads as "better than average at both disciplines
--- combined." No canonical formula was specified anywhere upstream; this is
--- a first cut, easy to revise.
+-- Match Factor over a period (season, competition, opposition, career) is
+-- POOLED from the per-match ingredients on fact_player_match_summary
+-- (mf_* facts), not averaged from the per-match factors — an average lets
+-- one cheap wicket count as much as a season's work. Pooling uses the same
+-- +1 blend as the per-match bowling factor (one extra wicket/dismissal at
+-- the peer average), so a one-match period matches the per-match value and
+-- tiny periods stay finite. Bowling is NULL with no wickets in the period.
+-- See docs/dbt-modeling-plan.md, "Advanced metrics: Match Factor".
+--
+-- all_rounder_composite is pooled batting + pooled bowling Match Factor —
+-- both are peer-normalised to 1.0 = average, so >2.0 reads as "better than
+-- average at both disciplines combined".
 
 {{ config(materialized='semantic_view') }}
 
@@ -129,6 +136,14 @@ FACTS (
     fact_player_match_summary.total_wickets AS fact_player_match_summary.total_wickets,
     fact_player_match_summary.five_wicket_hauls AS fact_player_match_summary.five_wicket_hauls,
     fact_player_match_summary.bowling_match_factor AS fact_player_match_summary.bowling_match_factor,
+    fact_player_match_summary.mf_bat_own_runs AS fact_player_match_summary.mf_bat_own_runs,
+    fact_player_match_summary.mf_bat_own_dismissals AS fact_player_match_summary.mf_bat_own_dismissals,
+    fact_player_match_summary.mf_bat_peer_runs AS fact_player_match_summary.mf_bat_peer_runs,
+    fact_player_match_summary.mf_bat_peer_dismissals AS fact_player_match_summary.mf_bat_peer_dismissals,
+    fact_player_match_summary.mf_bowl_own_runs_conceded AS fact_player_match_summary.mf_bowl_own_runs_conceded,
+    fact_player_match_summary.mf_bowl_own_wickets AS fact_player_match_summary.mf_bowl_own_wickets,
+    fact_player_match_summary.mf_bowl_peer_runs_conceded AS fact_player_match_summary.mf_bowl_peer_runs_conceded,
+    fact_player_match_summary.mf_bowl_peer_wickets AS fact_player_match_summary.mf_bowl_peer_wickets,
     fact_player_match_summary.catches AS fact_player_match_summary.catches,
     fact_player_match_summary.stumpings AS fact_player_match_summary.stumpings,
 
@@ -224,12 +239,22 @@ METRICS (
     fact_player_match_summary.sum_dismissals AS SUM(fact_player_match_summary.dismissals),
     fact_player_match_summary.sum_centuries AS SUM(fact_player_match_summary.centuries),
     fact_player_match_summary.sum_five_wicket_hauls AS SUM(fact_player_match_summary.five_wicket_hauls),
-    fact_player_match_summary.avg_batting_match_factor AS AVG(fact_player_match_summary.batting_match_factor),
+    fact_player_match_summary.pooled_batting_match_factor AS
+        ((SUM(fact_player_match_summary.mf_bat_own_runs)
+            + SUM(fact_player_match_summary.mf_bat_peer_runs) / NULLIF(SUM(fact_player_match_summary.mf_bat_peer_dismissals), 0))
+          / (SUM(fact_player_match_summary.mf_bat_own_dismissals) + 1))
+        / NULLIF(SUM(fact_player_match_summary.mf_bat_peer_runs) / NULLIF(SUM(fact_player_match_summary.mf_bat_peer_dismissals), 0), 0),
     fact_player_match_summary.batting_match_factor_stddev AS STDDEV(fact_player_match_summary.batting_match_factor),
-    fact_player_match_summary.avg_bowling_match_factor AS AVG(fact_player_match_summary.bowling_match_factor),
+    fact_player_match_summary.pooled_bowling_match_factor AS
+        CASE WHEN SUM(fact_player_match_summary.mf_bowl_own_wickets) > 0 THEN
+            (SUM(fact_player_match_summary.mf_bowl_peer_runs_conceded) / NULLIF(SUM(fact_player_match_summary.mf_bowl_peer_wickets), 0))
+            / NULLIF((SUM(fact_player_match_summary.mf_bowl_own_runs_conceded)
+                + SUM(fact_player_match_summary.mf_bowl_peer_runs_conceded) / NULLIF(SUM(fact_player_match_summary.mf_bowl_peer_wickets), 0))
+              / (SUM(fact_player_match_summary.mf_bowl_own_wickets) + 1), 0)
+        END,
     fact_player_match_summary.bowling_match_factor_stddev AS STDDEV(fact_player_match_summary.bowling_match_factor),
     fact_player_match_summary.all_rounder_composite AS
-        AVG(fact_player_match_summary.batting_match_factor) + AVG(fact_player_match_summary.bowling_match_factor),
+        fact_player_match_summary.pooled_batting_match_factor + fact_player_match_summary.pooled_bowling_match_factor,
 
     fact_team_match_summary.matches_played AS COUNT(fact_team_match_summary.match_id),
     fact_team_match_summary.wins AS SUM(CASE WHEN fact_team_match_summary.won THEN 1 ELSE 0 END),
@@ -280,7 +305,7 @@ AI_VERIFIED_QUERIES (
     ),
     best_all_rounders AS (
         QUESTION 'Who are the top 10 all-rounders, combining batting and bowling Match Factor, among players who batted and bowled in at least 5 matches?'
-        SQL 'SELECT sp.player_name, AVG(fpms.batting_match_factor) AS avg_batting_match_factor, AVG(fpms.bowling_match_factor) AS avg_bowling_match_factor, AVG(fpms.batting_match_factor) + AVG(fpms.bowling_match_factor) AS all_rounder_composite FROM fact_player_match_summary AS fpms JOIN summary_players AS sp ON fpms.player_id = sp.player_id WHERE fpms.batting_match_factor IS NOT NULL AND fpms.bowling_match_factor IS NOT NULL GROUP BY sp.player_name HAVING COUNT(*) >= 5 ORDER BY all_rounder_composite DESC LIMIT 10'
+        SQL 'SELECT sp.player_name, ((SUM(fpms.mf_bat_own_runs) + SUM(fpms.mf_bat_peer_runs) / NULLIF(SUM(fpms.mf_bat_peer_dismissals), 0)) / (SUM(fpms.mf_bat_own_dismissals) + 1)) / NULLIF(SUM(fpms.mf_bat_peer_runs) / NULLIF(SUM(fpms.mf_bat_peer_dismissals), 0), 0) AS pooled_batting_match_factor, CASE WHEN SUM(fpms.mf_bowl_own_wickets) > 0 THEN (SUM(fpms.mf_bowl_peer_runs_conceded) / NULLIF(SUM(fpms.mf_bowl_peer_wickets), 0)) / NULLIF((SUM(fpms.mf_bowl_own_runs_conceded) + SUM(fpms.mf_bowl_peer_runs_conceded) / NULLIF(SUM(fpms.mf_bowl_peer_wickets), 0)) / (SUM(fpms.mf_bowl_own_wickets) + 1), 0) END AS pooled_bowling_match_factor, (((SUM(fpms.mf_bat_own_runs) + SUM(fpms.mf_bat_peer_runs) / NULLIF(SUM(fpms.mf_bat_peer_dismissals), 0)) / (SUM(fpms.mf_bat_own_dismissals) + 1)) / NULLIF(SUM(fpms.mf_bat_peer_runs) / NULLIF(SUM(fpms.mf_bat_peer_dismissals), 0), 0)) + (CASE WHEN SUM(fpms.mf_bowl_own_wickets) > 0 THEN (SUM(fpms.mf_bowl_peer_runs_conceded) / NULLIF(SUM(fpms.mf_bowl_peer_wickets), 0)) / NULLIF((SUM(fpms.mf_bowl_own_runs_conceded) + SUM(fpms.mf_bowl_peer_runs_conceded) / NULLIF(SUM(fpms.mf_bowl_peer_wickets), 0)) / (SUM(fpms.mf_bowl_own_wickets) + 1), 0) END) AS all_rounder_composite FROM fact_player_match_summary AS fpms JOIN summary_players AS sp ON fpms.player_id = sp.player_id GROUP BY sp.player_name HAVING SUM(CASE WHEN fpms.mf_bat_own_runs IS NOT NULL AND fpms.mf_bowl_own_wickets IS NOT NULL THEN 1 ELSE 0 END) >= 5 ORDER BY all_rounder_composite DESC NULLS LAST LIMIT 10'
     ),
     team_match_summary_totals AS (
         QUESTION 'What were Hampshire''s total runs, wickets lost, and result against Glamorgan on 1 May 2026?'
