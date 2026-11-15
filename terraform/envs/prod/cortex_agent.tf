@@ -13,11 +13,12 @@
 # The spec (agent_spec.yaml.tftpl) holds the instructions, tools, skills
 # and orchestration model; it lives in git and nowhere else.
 #
-# Versions: Terraform edits the agent's LIVE (draft) version. Users in
-# Snowsight, CoWork and the API get the DEFAULT committed version, and the
-# evals target LIVE (evals/cortex_agent/agent_evaluation_config.yaml). So a
-# change goes: apply (LIVE) -> run_eval.sh -> promote_agent.sh (commit LIVE,
-# make it DEFAULT). Record each change's before/after scores in its PR.
+# Terraform updates the agent's LIVE version, which is what Snowsight,
+# CoWork and the API serve while no other version is committed — so don't
+# "Publish" the agent in Snowsight, or users stop getting Terraform's
+# changes. Evaluate a change after applying (evals/cortex_agent/run_eval.sh)
+# and record its before/after scores in the PR. A UAT environment to run the
+# evals before prod is the intended next step.
 
 moved {
   from = snowflake_cortex_agent.cricket_scorecards_analyst["prod"]

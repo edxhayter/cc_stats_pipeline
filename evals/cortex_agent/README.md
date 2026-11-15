@@ -11,7 +11,6 @@ Evaluates `CRICKET_SCORECARDS_ANALYST` with Snowflake's native
 | `agent_evaluation_config.yaml` | Which agent and version (`LIVE`), which dataset, which metrics |
 | `run_eval.sh` | Starts a run: rebuilds the dataset if the cases changed, uploads the config, names the run from git, optionally waits |
 | `run_eval.sql` | Reads a run's status, per-case scores and errors |
-| `../../scripts/promote_agent.sh` | Commits the evaluated `LIVE` version and makes it what users get |
 | `../../terraform/envs/prod/agent_evals.tf` | Stage + file format the config is read from |
 
 ## What the evals test
@@ -44,17 +43,20 @@ answers to common questions.
 
 ## Workflow
 
-Terraform edits the agent's `LIVE` (draft) version; users in Snowsight,
-CoWork and the API get the committed `DEFAULT` version. The evals target
-`LIVE`, so a change is scored before anyone sees it:
+Terraform updates the agent directly, then the evals score it:
 
 ```sh
-terraform -chdir=terraform/envs/prod apply                     # 1. change LIVE
-SNOWFLAKE_DATABASE=<db> evals/cortex_agent/run_eval.sh --label <what> --wait -- -c <connection>   # 2. score it
-SNOWFLAKE_DATABASE=<db> scripts/promote_agent.sh -- -c <connection>                               # 3. release it
+terraform -chdir=terraform/envs/prod apply
+SNOWFLAKE_DATABASE=<db> evals/cortex_agent/run_eval.sh --label <what> --wait -- -c <connection>
 ```
 
-Run step 2 two or three times: agent orchestration is non-deterministic, so
+The evals run against the live agent, so they report on a change rather
+than gate it. A UAT environment, where the evals run before a change
+reaches prod, is the intended next step. Until then, don't "Publish" the
+agent in Snowsight: that commits a version, and users would then get it
+instead of Terraform's updates.
+
+Run the evals two or three times: agent orchestration is non-deterministic, so
 find the normal range before treating one drop as a regression.
 `answer_correctness` is the most stable metric; `tool_selection_accuracy`
 and `logical_consistency` move when the agent takes a different path.
@@ -68,8 +70,7 @@ kept as the table comment), and names each run
 on. Arguments after `--` go to every `snow sql` call; `--wait` polls to
 completion and prints the scores, seconds and input tokens per question.
 
-To roll back a release: `ALTER AGENT CRICKET_SCORECARDS_ANALYST SET
-DEFAULT_VERSION = 'VERSION$<n>';`.
+To roll back, revert the change in git and apply again.
 
 **Privileges** (running role): a Cortex database role (e.g.
 `SNOWFLAKE.CORTEX_USER`), `EXECUTE TASK ON ACCOUNT`, `CREATE DATASET` and

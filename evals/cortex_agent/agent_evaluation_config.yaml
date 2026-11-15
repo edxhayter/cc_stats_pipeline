@@ -7,10 +7,8 @@
 # agent_name and dataset_name are resolved against the session's current
 # database/schema (the agent's), which run_eval.sh sets.
 #
-# agent_version LIVE: evaluate the draft Terraform just applied, not the
-# DEFAULT version users get. Once an evaluated LIVE version is committed
-# (promote_agent.sh), Snowflake relabels that run's traces with the new
-# version number.
+# agent_version LIVE: the version Terraform updates and users are served
+# (as long as no other version is committed).
 
 evaluation:
   agent_params:
