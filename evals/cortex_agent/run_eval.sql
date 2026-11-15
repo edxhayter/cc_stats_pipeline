@@ -1,43 +1,32 @@
--- Start, monitor, and read a Cortex Agent evaluation run.
--- Run from SnowSQL / Snowflake CLI (PUT needs a client, not Snowsight
--- worksheets — in Snowsight, upload the YAML to the stage via the UI).
+-- Read the results of an evaluation run started by run_eval.sh.
+--
+-- Set run_name to the name run_eval.sh printed (also listed in Snowsight
+-- under the agent's Evaluations tab), and run in the agent's schema.
 
-SET agent_schema_fqn = '<DATABASE>.<SEMANTIC_SCHEMA>';  -- same schema as the agent
-SET run_name = 'run-' || TO_VARCHAR(CURRENT_TIMESTAMP(), 'YYYYMMDD-HH24MISS');
-USE SCHEMA IDENTIFIER($agent_schema_fqn);
+USE SCHEMA CRICKET_SCORECARDS;  -- the agent's schema; USE DATABASE <DATABASE> first if needed
+SET run_name = '<run name from run_eval.sh>';
 
--- 1. Upload the config (stage + file format are Terraform-managed, see
---    terraform/envs/prod/agent_evals.tf). Path is relative to the repo root.
-PUT file://evals/cortex_agent/agent_evaluation_config.yaml @agent_eval_config
-    AUTO_COMPRESS = FALSE
-    OVERWRITE = TRUE;
-
--- 2. Start the run.
-CALL EXECUTE_AI_EVALUATION(
-    'START',
-    OBJECT_CONSTRUCT('run_name', $run_name),
-    '@agent_eval_config/agent_evaluation_config.yaml'
-);
-
--- 3. Poll until complete.
+-- 1. Status: CREATED → INVOCATION_* → COMPUTATION_* → COMPLETED.
 CALL EXECUTE_AI_EVALUATION(
     'STATUS',
     OBJECT_CONSTRUCT('run_name', $run_name),
     '@agent_eval_config/agent_evaluation_config.yaml'
 );
 
--- 4. Per-record results. Join back to the cases table for case_id/category.
-SELECT *
+-- 2. Per-record results. Join back to the cases table for case_id/category.
+SELECT c.case_id, c.category, r.metric_name, r.eval_agg_score, r.output
 FROM TABLE(SNOWFLAKE.LOCAL.GET_AI_EVALUATION_DATA(
     CURRENT_DATABASE(),
     CURRENT_SCHEMA(),
     'CRICKET_SCORECARDS_ANALYST',
     'CORTEX AGENT',
     $run_name
-));
+)) r
+LEFT JOIN cricket_agent_eval_cases c ON c.input_query = r.input  -- current cases; see eval_cases.sql at the run's commit for older runs
+ORDER BY c.category, c.case_id, r.metric_name;
 
--- 5. Errors/warnings for the run, if any record failed to score.
-SELECT *
+-- 3. Errors/warnings for the run, if any record failed to score.
+SELECT timestamp, record:"severity_text"::STRING AS severity, value
 FROM TABLE(SNOWFLAKE.LOCAL.GET_AI_OBSERVABILITY_LOGS(
     CURRENT_DATABASE(),
     CURRENT_SCHEMA(),
@@ -45,4 +34,5 @@ FROM TABLE(SNOWFLAKE.LOCAL.GET_AI_OBSERVABILITY_LOGS(
     'CORTEX AGENT'
 ))
 WHERE (record:"severity_text" = 'ERROR' OR record:"severity_text" = 'WARN')
-  AND record_attributes:"snow.ai.observability.run.name" = $run_name;
+  AND record_attributes:"snow.ai.observability.run.name" = $run_name
+ORDER BY timestamp;

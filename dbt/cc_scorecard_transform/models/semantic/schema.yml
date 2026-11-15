@@ -2,6 +2,10 @@ version: 2
 
 models:
   - name: sv_cricket_scorecards
+    config:
+      # dbt's SQL syntax check doesn't know CREATE SEMANTIC VIEW clauses and
+      # warns on TABLES (dbt0101); Snowflake validates the real DDL.
+      static_analysis: "off"
     description: >
       Snowflake Semantic View for Cortex Analyst, built via
       Snowflake-Labs/dbt_semantic_view (materialized='semantic_view').

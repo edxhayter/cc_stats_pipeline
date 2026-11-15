@@ -1,10 +1,8 @@
-# Stage holding the Cortex Agent evaluation config YAML
-# (evals/cortex_agent/agent_evaluation_config.yaml). EXECUTE_AI_EVALUATION
-# reads the config from a stage, and Snowflake requires an uncompressed
-# file behind a CSV format with no delimiters so the YAML is read as-is.
-#
-# Lives alongside the agent in the semantic schema. The eval dataset table
-# itself is data, not infra — created by evals/cortex_agent/eval_cases.sql.
+# EXECUTE_AI_EVALUATION reads its config YAML
+# (evals/cortex_agent/agent_evaluation_config.yaml) from a stage, and
+# Snowflake requires an uncompressed file behind a CSV format with no
+# delimiters so the YAML is read as-is. Lives with the agent; the eval
+# datasets are data, created by evals/cortex_agent/eval_cases.sql.
 
 resource "snowflake_file_format" "agent_eval_yaml" {
   name        = "AGENT_EVAL_YAML"

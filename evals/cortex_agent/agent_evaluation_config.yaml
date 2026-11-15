@@ -1,26 +1,26 @@
 # Cortex Agent evaluation config for CRICKET_SCORECARDS_ANALYST.
 #
 # No `dataset:` block on purpose — with one, every START tries to recreate
-# the dataset and fails once it exists. The dataset is created once by
-# eval_cases.sql; bump the _V<n> suffix there and here together.
+# the dataset and fails once it exists. eval_cases.sql (re)builds it, via
+# run_eval.sh, whenever the cases change.
 #
 # agent_name and dataset_name are resolved against the session's current
-# database/schema, so run_eval.sql sets USE SCHEMA first.
+# database/schema (the agent's), which run_eval.sh sets.
 #
-# agent_version omitted: targets the live version while the agent has a
-# single version. Pin one (e.g. VERSION$2) once versions are committed and
-# runs need to be compared over time.
+# agent_version LIVE: the version Terraform updates and users are served
+# (as long as no other version is committed).
 
 evaluation:
   agent_params:
     agent_name: "CRICKET_SCORECARDS_ANALYST"
     agent_type: "CORTEX AGENT"
+    agent_version: "LIVE"
   run_params:
     label: "Cricket scorecards analyst"
-    description: "Verified-query, held-out, and out-of-scope questions against SV_CRICKET_SCORECARDS"
+    description: "Behaviour (routing, semantics, names, sources, skills, dashboards) and fixed-fact questions against SV_CRICKET_SCORECARDS"
   source_metadata:
     type: "dataset"
-    dataset_name: "CRICKET_AGENT_EVALSET_V1"
+    dataset_name: "CRICKET_AGENT_EVALSET"
 
 metrics:
   # Metric versions pinned so judge changes don't masquerade as agent changes.
