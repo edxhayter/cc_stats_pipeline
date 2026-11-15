@@ -89,6 +89,11 @@ resource "snowflake_storage_integration" "scorecards" {
   enabled              = true
   storage_aws_role_arn = aws_iam_role.snowflake_storage_integration.arn
 
+  # Null on the first pass lets Snowflake generate the ID. Once it's fed
+  # back in, setting it keeps the 2.x provider from unsetting it, which
+  # would rotate the ID and break the role's trust policy.
+  storage_aws_external_id = var.snowflake_storage_aws_external_id
+
   storage_allowed_locations = [
     "s3://${var.s3_bucket_name}/${var.s3_prefix}",
   ]
@@ -164,7 +169,7 @@ resource "snowflake_task" "load_scorecards" {
   schema   = snowflake_schema.raw.name
 
   warehouse = var.warehouse_name
-  started   = true
+  started   = var.load_task_started
 
   schedule {
     using_cron = var.load_task_schedule

@@ -13,10 +13,10 @@ provider "snowflake" {
   private_key_passphrase = var.snowflake_private_passphrase
   warehouse              = var.snowflake_warehouse_name
 
-  # Resources the 2.x provider still gates as preview. The provider's
-  # preview list includes the stage/file_format/table/storage_integration
-  # resources the ingest module was written against under 0.x, so they're
-  # enabled here too — without them a 2.x plan refuses those resources.
+  # Resources the 2.x provider still treats as preview: the Cortex Agent
+  # (cortex_agent.tf), the generic file format/stage/storage
+  # integration/table resources used by the ingest module and agent_evals.tf,
+  # and the network rule/external access integration in ci.tf.
   preview_features_enabled = [
     "snowflake_cortex_agent_resource",
     "snowflake_external_access_integration_resource",

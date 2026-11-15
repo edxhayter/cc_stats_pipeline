@@ -518,17 +518,29 @@ metrics (7.4 means 7 overs + 4 balls, not 7.4 decimal overs) — an
 approximation, not exact. Refine later by converting to total balls
 bowled before aggregating.
 
-**Verified queries**: `AI_VERIFIED_QUERIES` is a genuinely recent
-`CREATE SEMANTIC VIEW` clause (postdated the syntax reference fetched
-earlier in this build) — curated `QUESTION`/`SQL` pairs that improve
-Cortex Analyst's accuracy on the question shapes users actually ask.
-Clause sits after `METRICS`. The `SQL` in each entry is plain SQL against
-the physical mart tables (what Cortex Analyst itself generates under the
-hood), not the `SEMANTIC_VIEW(...)` wrapper syntax used for manual
-testing — the two are different things and shouldn't be confused. Three
-seeded so far (batting average, bowler wickets/economy, match result +
-MOTM), each independently validated by running its embedded SQL directly
-and confirming it matches numbers already verified elsewhere in this doc.
+**Verified queries**: `AI_VERIFIED_QUERIES` — curated `QUESTION`/`SQL`
+pairs that improve Cortex Analyst's accuracy on the question shapes users
+actually ask. Clause sits after `METRICS`. Two rules, both got wrong in
+the first pass and since corrected:
+
+- The `SQL` references the **logical table names** declared in `TABLES`
+  (`fact_batting`, `batters`, `winning_teams`, ...), not physical tables
+  via `ref()` — per Snowflake's semantic view docs. It is also not the
+  `SEMANTIC_VIEW(...)` wrapper syntax used for manual testing.
+- The `QUESTION` names the same concrete values the SQL filters on
+  ("What is N Gubbins' batting average?"), not a generic "a specific
+  player" — otherwise the pair teaches the wrong mapping.
+
+Nine seeded (batting average, wickets/economy, match result + MOTM,
+batting and bowling Match Factor, partnerships, fielding, all-rounders,
+team match totals). Each was validated by running its physical-table
+equivalent against the dev marts (full 173-match season, so career totals
+differ from the single-match Ham v Glm figures above — e.g. N Gubbins
+852 runs / 22 dismissals / 38.73). Two fixes surfaced along the way:
+partnerships needed `team_innings_number` exposed as a dimension (a
+first-class match has two partnership #1s per team), and the all-rounder
+ranking needed a minimum-sample filter (`HAVING COUNT(*) >= 5`) — without
+it the top spots were single-match outliers (bowling Match Factor 13+).
 More should be added as real usage surfaces the question shapes people
 actually ask.
 

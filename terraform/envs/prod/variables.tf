@@ -126,3 +126,9 @@ variable "ci_snowflake_rsa_public_key" {
   description = "Public key (PEM body, no header/footer lines) for the CI service user. The private half goes in the SNOWFLAKE_PRIVATE_KEY GitHub secret only."
   type        = string
 }
+
+variable "snowflake_load_task_started" {
+  description = "Run the scorecard load task on its daily schedule. Off while loads are triggered by hand (EXECUTE TASK)."
+  type        = bool
+  default     = false
+}
