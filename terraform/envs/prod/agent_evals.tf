@@ -3,7 +3,7 @@
 # CRICKET_SCORECARDS_EVAL_RAW holds a zero-copy clone of the raw scorecard
 # lines, taken once by evals/cortex_agent/fixture.sql. It shares storage
 # with the source and never sees new loads, so the eval ground truth stays
-# fixed. The dbt `eval` target rebuilds the project over it as views into
+# fixed. The dbt `eval` target rebuilds the project over it into
 # CRICKET_SCORECARDS_EVAL, where the eval twin agent (cortex_agent.tf), the
 # eval dataset and the config stage below also live.
 #
