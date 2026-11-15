@@ -59,8 +59,11 @@ resource "snowflake_cortex_agent" "cricket_scorecards_analyst" {
   }
 
   specification = templatefile("${path.module}/agent_spec.yaml.tftpl", {
-    # null omits `models`, so Snowflake picks the model (`auto`).
-    orchestration_model = null
+    # Orchestration only plans tool calls and writes the answer (Cortex
+    # Analyst writes the SQL), so it doesn't need the largest model. Pinned
+    # rather than `auto` so evals compare like with like; null would omit
+    # `models` and let Snowflake pick.
+    orchestration_model = "claude-sonnet-5-5"
     semantic_view       = "${var.snowflake_database_name}.${each.value.schema}.SV_CRICKET_SCORECARDS"
     warehouse           = var.snowflake_warehouse_name
     # Every skill folder in agent_skills/, read from this agent's own skills
