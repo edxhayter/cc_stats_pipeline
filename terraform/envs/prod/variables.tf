@@ -113,7 +113,7 @@ variable "tf_state_bucket_name" {
 variable "tf_state_key_prefix" {
   description = "Key prefix of this project's state within the state bucket"
   type        = string
-  default     = "cc-stats-pipeline/"
+  default     = "cricket-scorecards/"
 }
 
 variable "ci_snowflake_user_name" {
