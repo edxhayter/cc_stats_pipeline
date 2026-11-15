@@ -9,7 +9,8 @@
 -- then rebuild the eval target, re-derive every ground truth answer and
 -- bump the dataset version in eval_cases.sql and agent_evaluation_config.yaml.
 --
--- Snapshot in use: 235 matches (latest load 2026-11-15).
+-- Snapshot in use: 235 matches, 2026-04-03 to 2026-07-18 (latest load
+-- 2026-11-15).
 
 USE DATABASE IDENTIFIER($database_name);  -- SET database_name = '<DATABASE>'; first
 
