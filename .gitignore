@@ -56,3 +56,6 @@ Thumbs.db
 
 # Node (in case any tooling scripts use it)
 node_modules/
+
+# Local eval notes; results live in Snowflake, decisions in PR descriptions
+evals/cortex_agent/results.md

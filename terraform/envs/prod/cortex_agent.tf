@@ -22,7 +22,7 @@
 # then run evals/cortex_agent/run_eval.sh (runs are named after the commit).
 # Merging promotes it: the next full apply from main updates the live agent.
 # Until then, a full apply from main puts the twin back on main's spec.
-# Results per stage: evals/cortex_agent/results.md.
+# Record each experiment's before/after scores in its PR description.
 
 locals {
   cortex_agents = {
