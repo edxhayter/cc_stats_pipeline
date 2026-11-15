@@ -90,3 +90,9 @@ variable "tags" {
     ManagedBy   = "terraform"
   }
 }
+
+variable "snowflake_load_task_started" {
+  description = "Run the scorecard load task on its daily schedule. Off while loads are triggered by hand (EXECUTE TASK)."
+  type        = bool
+  default     = false
+}

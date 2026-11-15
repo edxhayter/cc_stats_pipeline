@@ -22,4 +22,5 @@ module "snowflake_ingest" {
   # re-apply.
   snowflake_storage_aws_iam_user_arn = var.snowflake_storage_aws_iam_user_arn
   snowflake_storage_aws_external_id  = var.snowflake_storage_aws_external_id
+  load_task_started                  = var.snowflake_load_task_started
 }
