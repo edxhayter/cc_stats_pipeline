@@ -7,7 +7,8 @@
 #   score can always be traced back to the code that produced it.
 #
 # Steps: create the eval dataset if its version is new (eval_cases.sql),
-# upload the config, START the run, and with --wait poll until it finishes.
+# upload the agent skills and the config, START the run, and with --wait
+# poll until it finishes.
 #
 # Usage:
 #   SNOWFLAKE_DATABASE=<db> evals/cortex_agent/run_eval.sh [--label NAME] [--wait] [-- SNOW_FLAGS...]
@@ -67,6 +68,9 @@ if [[ "$(snow_sql --format json -q "SHOW DATASETS LIKE '${dataset}' IN SCHEMA" |
   echo "Creating dataset ${dataset}"
   snow_sql -f "$cases" >/dev/null
 fi
+
+# The twin reads skills from its own stage, so score the checked-out skills.
+DRY_RUN="${DRY_RUN:-}" "$eval_dir/../../agent_skills/upload.sh" "$schema" -- ${snow_flags[@]+"${snow_flags[@]}"}
 
 snow_sql -q "PUT 'file://${config}' @AGENT_EVAL_CONFIG AUTO_COMPRESS = FALSE OVERWRITE = TRUE" >/dev/null
 snow_sql -q "CALL EXECUTE_AI_EVALUATION('START', OBJECT_CONSTRUCT('run_name', '${run_name}'), '${stage_file}')" >/dev/null

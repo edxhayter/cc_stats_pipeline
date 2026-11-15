@@ -20,6 +20,12 @@
 --   held_out_*       — no verified query covers it; tests generalisation
 --   name_resolution  — surname only; tests matching names as stored
 --                      (initial + surname), including ambiguous surnames
+--   sim_vs_web       — simulated-season figures must come from the data,
+--                      never the web; career questions default to the sim
+--   web_context      — real-world background and pre-simulation history via
+--                      web search, labelled and kept separate. Web content
+--                      changes, so these expect behaviour, not exact text
+--   skill            — player-profile, match-report and selector skills
 --   out_of_scope     — data the scorecards don't contain; the agent should
 --                      say so and not call the tool
 
@@ -123,6 +129,41 @@ FROM VALUES
      $${"ground_truth_output": "Four players have the surname Ali: K Ali (714 runs), M Ali (269), J Ali (149) and H Ali (6). The response must recognise the name is ambiguous, either asking which Ali is meant or giving figures for each. It must not silently pick one player, and in particular must not assume M Ali because of a real-world cricketer of that name.",
         "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}]}$$),
 
+    ('sim_season_guard', 'sim_vs_web',
+     $$How many wickets has J Porter taken this season, and for which team?$$,
+     $${"ground_truth_output": "J Porter has taken 75 wickets for Essex in the 2026 simulated season, in 20 matches at an average of about 20.1. These figures must come from the simulated data, not from real-world statistics or a web search.",
+        "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}]}$$),
+
+    ('career_defaults_to_sim', 'sim_vs_web',
+     $$How many career wickets has J Porter taken?$$,
+     $${"ground_truth_output": "The answer defaults to the simulated season: 75 wickets for Essex in the 2026 simulated season. It should signpost that his real-world record from before the simulation is separate and can be looked up if wanted. It must not add real-world figures to the simulated ones or present a combined career total.",
+        "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}]}$$),
+
+    ('web_background', 'web_context',
+     $$What kind of bowler is J Porter?$$,
+     $${"ground_truth_output": "J Porter plays for Essex in the simulated data and is the real-world Jamie Porter, an Essex right-arm seam bowler (fast-medium). The bowling style must be labelled as real-world background from the web, with a source, not as simulated data. Any simulated figures quoted (75 wickets in 2026) must be labelled as the simulated season.",
+        "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}, {"tool_name": "web_search"}]}$$),
+
+    ('web_history', 'web_context',
+     $$How did J Porter do before the simulated season started?$$,
+     $${"ground_truth_output": "Describes Jamie Porter's real-world career before 2026: a long-serving Essex seam bowler and one of their leading first-class wicket-takers. Any figures must be labelled as real-world and pre-simulation, with a source, and kept separate from his 75 wickets in the 2026 simulated season; they must not be added together.",
+        "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}, {"tool_name": "web_search"}]}$$),
+
+    ('skill_player_profile', 'skill',
+     $$Give me a player profile of B Kellaway.$$,
+     $${"ground_truth_output": "A profile with the simulated season and real-world background in separate, labelled sections. 2026 simulated season for Glamorgan: 20 matches, 681 runs with 24 dismissals (average about 28.4), 54 wickets at an economy of about 4.82, pooled batting Match Factor about 0.90 and pooled bowling Match Factor about 0.92, explained as slightly below the match average. Real-world background from the web: Ben Kellaway, a Glamorgan all-rounder known for bowling spin with either arm. No real-world figures may be mixed into the simulated-season section.",
+        "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}, {"tool_name": "web_search"}]}$$),
+
+    ('skill_match_report', 'skill',
+     $$Write a match report for Hampshire v Glamorgan on 1 May 2026.$$,
+     $${"ground_truth_output": "Hampshire beat Glamorgan by 135 runs in the first-class league. Hampshire made 733 runs for 19 wickets across their two innings; Glamorgan made 598 for 20. F Middleton was man of the match with 175 runs (69 and 106), a batting Match Factor of about 2.20. Key partnerships: 111 for Hampshire's 7th wicket in the first innings and an opening stand of 144 in the second. Innings must be kept separate. The report must not mention or guess the toss, venue or weather.",
+        "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}]}$$),
+
+    ('skill_selector', 'skill',
+     $$Who should open the batting for Hampshire in their next T20?$$,
+     $${"ground_truth_output": "Presents a recommended option, the incumbents and other options. The incumbents are T Albert and J Vince, who opened in Hampshire's most recent T20 (17 July 2026) and through the season. T Albert: 271 runs in 13 innings, average about 20.8, strike rate about 166. J Vince: 209 runs in 14 innings, average about 14.9, strike rate about 125. It should note that T Albert also keeps wicket (he has stumpings), so dropping him affects team balance, and offer options for different conditions for the selector to weigh. All figures must come from the simulated season.",
+        "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}]}$$),
+
     ('toss', 'out_of_scope',
      $$Who won the toss in the Hampshire v Glamorgan match on 1 May 2026?$$,
      $${"ground_truth_output": "The response should say that toss information is not in this dataset. It must not name a toss winner or guess.",
@@ -143,6 +184,6 @@ FROM VALUES
 CALL SYSTEM$CREATE_EVALUATION_DATASET(
     'Cortex Agent',
     CURRENT_DATABASE() || '.' || CURRENT_SCHEMA() || '.CRICKET_AGENT_EVAL_CASES',
-    CURRENT_DATABASE() || '.' || CURRENT_SCHEMA() || '.CRICKET_AGENT_EVALSET_V1',
+    CURRENT_DATABASE() || '.' || CURRENT_SCHEMA() || '.CRICKET_AGENT_EVALSET_V2',
     OBJECT_CONSTRUCT('query_text', 'INPUT_QUERY', 'expected_tools', 'GROUND_TRUTH')
 );

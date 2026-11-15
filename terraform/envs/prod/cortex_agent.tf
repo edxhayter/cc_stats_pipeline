@@ -61,5 +61,9 @@ resource "snowflake_cortex_agent" "cricket_scorecards_analyst" {
     orchestration_model = null
     semantic_view       = "${var.snowflake_database_name}.${each.value.schema}.SV_CRICKET_SCORECARDS"
     warehouse           = var.snowflake_warehouse_name
+    # Every agent_skills/<name>/SKILL.md in the repo, read from this agent's
+    # own skills stage (agent_skills.tf).
+    skills       = sort([for f in fileset("${path.module}/../../../agent_skills", "*/SKILL.md") : dirname(f)])
+    skills_stage = "@${var.snowflake_database_name}.${each.value.schema}.${snowflake_stage.agent_skills[each.key].name}"
   })
 }

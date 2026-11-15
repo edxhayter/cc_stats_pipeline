@@ -14,7 +14,7 @@ agent.
 | File | What it is |
 |---|---|
 | `fixture.sql` | One-off zero-copy clone of the raw scorecard lines into `CRICKET_SCORECARDS_EVAL_RAW` |
-| `eval_cases.sql` | Eval table + 21 cases with ground truth, then creates dataset `CRICKET_AGENT_EVALSET_V1` |
+| `eval_cases.sql` | Eval table + 28 cases with ground truth, then creates dataset `CRICKET_AGENT_EVALSET_V2` |
 | `agent_evaluation_config.yaml` | Which agent, which dataset, which metrics |
 | `run_eval.sh` | Starts a run: creates the dataset if new, uploads the config, names the run from git, optionally waits |
 | `run_eval.sql` | Reads a run's status, per-case scores and errors |
@@ -51,8 +51,16 @@ in the cases means that range.
 - **name_resolution (2)** — surname only. "Gubbins" has one match;
   "Ali" has four, and the sim's top-scoring Ali (K Ali) isn't the one
   sharing a famous real-world name (M Ali).
+- **sim_vs_web (2)** — simulated-season figures come from the data, never
+  the web, and "career" questions default to the simulated season with a
+  pointer to the real-world record.
+- **web_context (2)** — real-world background and pre-simulation history via
+  web search, labelled and kept separate. Web content changes, so these
+  expect behaviour rather than exact text.
+- **skill (3)** — the player-profile, match-report and selector skills
+  (`agent_skills/` at the repo root).
 - **out_of_scope (3)** — toss, venue, ball-by-ball. The agent should say
-  the data doesn't exist and not call the tool.
+  the data doesn't exist and not call any tool.
 
 Ground truth comes from the eval marts only, never the raw scorecards: the
 evals score the agent against what the marts say, and parsing bugs are for

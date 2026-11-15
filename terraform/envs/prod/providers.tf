@@ -15,10 +15,12 @@ provider "snowflake" {
 
   # Resources the 2.x provider still treats as preview: the Cortex Agent
   # (cortex_agent.tf), and the generic file format/stage/storage
-  # integration/table resources used by the ingest module and agent_evals.tf.
+  # integration/table resources used by the ingest module and agent_evals.tf,
+  # and the parameters data source behind the web search check.
   preview_features_enabled = [
     "snowflake_cortex_agent_resource",
     "snowflake_file_format_resource",
+    "snowflake_parameters_datasource",
     "snowflake_stage_resource",
     "snowflake_storage_integration_resource",
     "snowflake_table_resource",
