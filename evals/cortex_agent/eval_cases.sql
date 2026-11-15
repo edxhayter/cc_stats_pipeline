@@ -1,7 +1,7 @@
 -- Cortex Agent evaluation dataset for CRICKET_SCORECARDS_ANALYST.
 --
 -- Runs with the agent's schema (var.snowflake_semantic_schema) as the
--- current schema. run_eval.py executes this automatically whenever the
+-- current schema. The deploy workflow runs this automatically whenever the
 -- dataset version named in agent_evaluation_config.yaml doesn't exist yet;
 -- to run by hand, USE SCHEMA first. Snowflake datasets are immutable: after
 -- changing any row below, bump the version suffix in BOTH the CALL at the

@@ -1,24 +1,30 @@
 # CI/CD
 
-GitHub Actions, three workflows:
+GitHub Actions, two workflows:
 
 | Workflow | Trigger | Does |
 |---|---|---|
-| `pr-checks.yml` | PR to `main` | `terraform fmt/validate/plan` (plan in the job summary); dbt project deployed to a CI schema and `dbt build` run there |
-| `deploy.yml` | push to `main`, manual | `terraform apply` and dbt deploy + build in parallel, then the agent evals |
-| `agent-evals.yml` | called by deploy, manual | Runs `evals/cortex_agent` against the deployed agent; scores in the job summary |
+| `pr-checks.yml` | PR to `main` | `terraform fmt/validate/plan` (plan in the job summary); `dbt parse` |
+| `deploy.yml` | push to `main`, manual | `terraform apply` and dbt deploy + build in parallel, then starts the agent evals in Snowflake |
 
 ```
 PR ──► terraform plan
-   └─► dbt deploy (CC_SCORECARD_TRANSFORM_CI) ─► dbt build --target ci
+   └─► dbt parse (no Snowflake connection)
 
 merge ──► terraform apply ───────────────┐
-      └─► dbt deploy ─► dbt build prod ──┴─► agent evals (report-only)
+      └─► dbt deploy ─► dbt build prod ──┴─► start agent evals (report-only)
 ```
 
-Evals are **report-only**: a low score doesn't fail the deploy. Once a
-few runs have shown the normal range, gate with
-`--min-answer-correctness` in `agent-evals.yml`.
+PRs only parse the dbt project; models and tests run for real on merge,
+so a model that fails at runtime fails the deploy (and skips the evals)
+rather than the PR. Fine for a single-maintainer project; add a slim CI
+build if that changes.
+
+Evals run entirely in Snowflake (`EXECUTE_AI_EVALUATION`). The deploy job
+creates the dataset if its version is new, uploads the config, starts the
+run and exits — it doesn't wait. Scores are in Snowsight under the agent's
+**Evaluations** tab, or via `evals/cortex_agent/run_eval.sql`. A low score
+never fails the deploy.
 
 ## Identities
 
@@ -92,8 +98,6 @@ Repository **secrets**:
   `dbt_projects_profiles.yml`, generated in CI by
   `.github/scripts/write-dbt-profiles.sh` so the database name stays out
   of tracked code. Local dbt keeps using your own `profiles.yml`.
-- **CI schema**: one shared `<semantic schema>_CI`; PR builds queue on a
-  concurrency group rather than running over each other.
 - **Provider preview flags**: `providers.tf` enables the 2.x provider's
   preview gates for the stage/file format/table/storage integration
   resources the ingest module uses, as well as the new network rule and

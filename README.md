@@ -27,7 +27,7 @@ Two independent pipelines, both triggered on merge to `main`:
 1. **Infra pipeline** — `terraform apply` (S3 backend, native locking) updates AWS + Snowflake objects.
 2. **dbt deploy pipeline** — Snowflake CLI pushes the dbt project into the `DBT PROJECT` object; the next scheduled Task run picks up the new version automatically.
 
-Every PR runs `terraform plan` + a full `dbt build` into a CI schema first, with the plan posted to the job summary. After a deploy, the Cortex Agent evals (`evals/cortex_agent/`) run against the deployed agent and post scores — report-only for now. Setup, identities, and the full list of GitHub variables: [docs/cicd.md](docs/cicd.md).
+Every PR runs `terraform plan` (posted to the job summary) and `dbt parse`. After a deploy, the Cortex Agent evals (`evals/cortex_agent/`) are started in Snowflake against the deployed agent; scores are read in Snowsight — report-only. Setup, identities, and the full list of GitHub variables: [docs/cicd.md](docs/cicd.md).
 
 ## Decisions
 

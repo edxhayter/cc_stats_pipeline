@@ -94,8 +94,56 @@ jobs:
       - name: dbt build
         run: snow dbt execute -x CC_SCORECARD_TRANSFORM build --target prod
 
+  # Starts an evaluation run in Snowflake and exits without waiting on it.
+  # Scores land in Snowsight under the agent's Evaluations tab; a low score
+  # never fails the deploy. evals/cortex_agent/run_eval.sql reads them by SQL.
   agent-evals:
-    name: Agent evals
+    name: Start agent evals
     needs: [terraform-apply, dbt-deploy]
-    uses: ./.github/workflows/agent-evals.yml
-    secrets: inherit
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      SNOWFLAKE_AUTHENTICATOR: SNOWFLAKE_JWT
+      SNOWFLAKE_ACCOUNT: ${{ vars.SNOWFLAKE_ORGANIZATION_NAME }}-${{ vars.SNOWFLAKE_ACCOUNT_NAME }}
+      SNOWFLAKE_USER: ${{ vars.SNOWFLAKE_CI_USER }}
+      SNOWFLAKE_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
+      SNOWFLAKE_WAREHOUSE: ${{ vars.SNOWFLAKE_WAREHOUSE }}
+      SNOWFLAKE_DATABASE: ${{ vars.SNOWFLAKE_DATABASE }}
+      SNOWFLAKE_SCHEMA: ${{ vars.SNOWFLAKE_SEMANTIC_SCHEMA }}
+      SNOWFLAKE_PRIVATE_KEY_RAW: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
+      PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE }}
+      EVAL_CONFIG: evals/cortex_agent/agent_evaluation_config.yaml
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: snowflakedb/snowflake-actions@v3
+        with:
+          cli-version: "3.28"
+
+      # Datasets are immutable, so a new _V<n> in the config means a new
+      # dataset to create from eval_cases.sql.
+      - name: Create eval dataset if new
+        run: |
+          dataset=$(sed -n 's/^ *dataset_name: *"\([A-Z0-9_]*\)".*/\1/p' "$EVAL_CONFIG")
+          if ! grep -q "\.${dataset}'" evals/cortex_agent/eval_cases.sql; then
+            echo "::error::eval_cases.sql doesn't create ${dataset}; bump the version in both files together"
+            exit 1
+          fi
+          found=$(snow sql -x --format json -q "SHOW DATASETS LIKE '${dataset}' IN SCHEMA" | jq length)
+          if [ "$found" -eq 0 ]; then
+            echo "Creating dataset ${dataset}"
+            snow sql -x -f evals/cortex_agent/eval_cases.sql
+          else
+            echo "Dataset ${dataset} exists"
+          fi
+
+      - name: Start evaluation
+        run: |
+          run_name="deploy-$(date -u +%Y%m%d-%H%M%S)-${GITHUB_SHA::7}"
+          snow sql -x -q "PUT 'file://${GITHUB_WORKSPACE}/${EVAL_CONFIG}' @AGENT_EVAL_CONFIG AUTO_COMPRESS = FALSE OVERWRITE = TRUE"
+          snow sql -x -q "CALL EXECUTE_AI_EVALUATION('START', OBJECT_CONSTRUCT('run_name', '${run_name}'), '@AGENT_EVAL_CONFIG/agent_evaluation_config.yaml')"
+          {
+            echo "## Agent evals started"
+            echo
+            echo "Run \`${run_name}\` is scoring in Snowflake. Results: Snowsight → AI & ML → Agents → CRICKET_SCORECARDS_ANALYST → Evaluations."
+          } >> "$GITHUB_STEP_SUMMARY"

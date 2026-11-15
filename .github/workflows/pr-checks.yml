@@ -8,10 +8,10 @@ permissions:
   contents: read
   id-token: write # AWS OIDC
 
-# Values shared by both jobs. Setup and the full list of repo variables and
-# secrets: docs/cicd.md.
+# Terraform inputs for the plan job. Setup and the full list of repo
+# variables and secrets: docs/cicd.md.
 env:
-  # Terraform inputs (mirror terraform.tfvars, which is gitignored)
+  # Mirror terraform.tfvars, which is gitignored
   TF_IN_AUTOMATION: "true"
   TF_VAR_aws_region: ${{ vars.AWS_REGION }}
   TF_VAR_landing_bucket_name: ${{ vars.LANDING_BUCKET_NAME }}
@@ -74,46 +74,43 @@ jobs:
             echo "</details>"
           } >> "$GITHUB_STEP_SUMMARY"
 
-  dbt-build:
-    name: dbt build (CI schema)
+  dbt-parse:
+    name: dbt parse
     runs-on: ubuntu-latest
-    # One shared CI schema, so PR builds take turns rather than clobbering
-    # each other's tables.
-    concurrency:
-      group: dbt-ci-schema
-      cancel-in-progress: false
-    env:
-      SNOWFLAKE_AUTHENTICATOR: SNOWFLAKE_JWT
-      SNOWFLAKE_ACCOUNT: ${{ vars.SNOWFLAKE_ORGANIZATION_NAME }}-${{ vars.SNOWFLAKE_ACCOUNT_NAME }}
-      SNOWFLAKE_USER: ${{ vars.SNOWFLAKE_CI_USER }}
-      SNOWFLAKE_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
-      SNOWFLAKE_WAREHOUSE: ${{ vars.SNOWFLAKE_WAREHOUSE }}
-      SNOWFLAKE_DATABASE: ${{ vars.SNOWFLAKE_DATABASE }}
-      SNOWFLAKE_SCHEMA: ${{ vars.SNOWFLAKE_SEMANTIC_SCHEMA }}_CI
-      SNOWFLAKE_PRIVATE_KEY_RAW: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
-      PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE }}
+    defaults:
+      run:
+        working-directory: dbt/cc_scorecard_transform
     steps:
       - uses: actions/checkout@v4
 
-      - uses: snowflakedb/snowflake-actions@v3
+      - uses: actions/setup-python@v5
         with:
-          cli-version: "3.28"
+          python-version: "3.12"
 
-      - name: Write dbt profiles
-        run: .github/scripts/write-dbt-profiles.sh
+      - run: pip install "dbt-core~=1.12.0" "dbt-snowflake~=1.12.0"
 
-      - name: Ensure CI schema
-        run: snow sql -x -q "CREATE SCHEMA IF NOT EXISTS ${SNOWFLAKE_DATABASE}.${SNOWFLAKE_SCHEMA}"
-
-      - name: Deploy CI dbt project object
+      # Parse never connects, so the profile only has to be well-formed.
+      - name: Write placeholder profile
         run: |
-          snow dbt deploy CC_SCORECARD_TRANSFORM_CI -x \
-            --source dbt/cc_scorecard_transform \
-            --default-target ci \
-            --dbt-version 1.12.3 \
-            --external-access-integration CC_STATS_DBT_DEPS
+          mkdir -p "$RUNNER_TEMP/dbt"
+          cat > "$RUNNER_TEMP/dbt/profiles.yml" <<'YAML'
+          cc_scorecard_transform:
+            target: ci
+            outputs:
+              ci:
+                type: snowflake
+                account: parse-only
+                user: parse-only
+                database: PARSE_ONLY
+                warehouse: PARSE_ONLY
+                schema: PARSE_ONLY
+          YAML
 
-      # Builds every model (semantic view included) and runs every test in
-      # DAG order; any failure fails the PR.
-      - name: dbt build
-        run: snow dbt execute -x --no-writeback CC_SCORECARD_TRANSFORM_CI build --target ci
+      # Catches broken Jinja, refs, YAML and tests without touching
+      # Snowflake. Models and tests run for real in deploy.yml on merge.
+      - run: dbt deps
+        env:
+          DBT_PROFILES_DIR: ${{ runner.temp }}/dbt
+      - run: dbt parse --no-partial-parse
+        env:
+          DBT_PROFILES_DIR: ${{ runner.temp }}/dbt
