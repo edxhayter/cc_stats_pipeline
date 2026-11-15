@@ -9,15 +9,42 @@
 #
 # Preview feature — requires preview_features_enabled on the provider
 # (see providers.tf).
+#
+# Two agents from one definition: `prod` reads the live semantic view;
+# `eval` reads the semantic view the dbt `eval` target builds over a frozen
+# clone of the raw data (see agent_evals.tf), so eval ground truth never
+# drifts. Keeping both in one for_each means they can't diverge by accident.
+
+locals {
+  cortex_agents = {
+    prod = {
+      name         = "CRICKET_SCORECARDS_ANALYST"
+      schema       = var.snowflake_semantic_schema
+      display_name = "Cricket Scorecards Analyst"
+    }
+    eval = {
+      name         = "CRICKET_SCORECARDS_ANALYST_EVAL"
+      schema       = snowflake_schema.eval.name
+      display_name = "Cricket Scorecards Analyst (eval)"
+    }
+  }
+}
+
+moved {
+  from = snowflake_cortex_agent.cricket_scorecards_analyst
+  to   = snowflake_cortex_agent.cricket_scorecards_analyst["prod"]
+}
 
 resource "snowflake_cortex_agent" "cricket_scorecards_analyst" {
+  for_each = local.cortex_agents
+
   database = var.snowflake_database_name
-  schema   = var.snowflake_semantic_schema
-  name     = "CRICKET_SCORECARDS_ANALYST"
+  schema   = each.value.schema
+  name     = each.value.name
   comment  = "Cricket statistics analyst — answers batting/bowling/match questions via the cricket scorecards semantic view."
 
   profile {
-    display_name = "Cricket Scorecards Analyst"
+    display_name = each.value.display_name
   }
 
   # models omitted deliberately — uses Snowflake's current default
@@ -54,6 +81,6 @@ resource "snowflake_cortex_agent" "cricket_scorecards_analyst" {
 
     tool_resources:
       cricket_scorecards_analyst:
-        semantic_view: "${var.snowflake_database_name}.${var.snowflake_semantic_schema}.SV_CRICKET_SCORECARDS"
+        semantic_view: "${var.snowflake_database_name}.${each.value.schema}.SV_CRICKET_SCORECARDS"
   YAML
 }

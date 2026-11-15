@@ -36,4 +36,6 @@ models:
     intermediate:
       +materialized: view
     marts:
-      +materialized: table
+      # Views on the eval target: it's rebuilt over a frozen clone, so there's
+      # nothing worth storing twice.
+      +materialized: "{{ 'view' if target.name == 'eval' else 'table' }}"

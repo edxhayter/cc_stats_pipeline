@@ -2,7 +2,7 @@
 -- Run from SnowSQL / Snowflake CLI (PUT needs a client, not Snowsight
 -- worksheets — in Snowsight, upload the YAML to the stage via the UI).
 
-SET agent_schema_fqn = '<DATABASE>.<SEMANTIC_SCHEMA>';  -- same schema as the agent
+SET agent_schema_fqn = '<DATABASE>.CRICKET_SCORECARDS_EVAL';  -- the eval twin's schema
 SET run_name = 'run-' || TO_VARCHAR(CURRENT_TIMESTAMP(), 'YYYYMMDD-HH24MISS');
 USE SCHEMA IDENTIFIER($agent_schema_fqn);
 
@@ -31,7 +31,7 @@ SELECT *
 FROM TABLE(SNOWFLAKE.LOCAL.GET_AI_EVALUATION_DATA(
     CURRENT_DATABASE(),
     CURRENT_SCHEMA(),
-    'CRICKET_SCORECARDS_ANALYST',
+    'CRICKET_SCORECARDS_ANALYST_EVAL',
     'CORTEX AGENT',
     $run_name
 ));
@@ -41,7 +41,7 @@ SELECT *
 FROM TABLE(SNOWFLAKE.LOCAL.GET_AI_OBSERVABILITY_LOGS(
     CURRENT_DATABASE(),
     CURRENT_SCHEMA(),
-    'CRICKET_SCORECARDS_ANALYST',
+    'CRICKET_SCORECARDS_ANALYST_EVAL',
     'CORTEX AGENT'
 ))
 WHERE (record:"severity_text" = 'ERROR' OR record:"severity_text" = 'WARN')

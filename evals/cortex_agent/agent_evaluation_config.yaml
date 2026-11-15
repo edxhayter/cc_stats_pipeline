@@ -1,11 +1,13 @@
-# Cortex Agent evaluation config for CRICKET_SCORECARDS_ANALYST.
+# Cortex Agent evaluation config for CRICKET_SCORECARDS_ANALYST_EVAL, the
+# twin of the live agent that reads the frozen eval snapshot (fixture.sql).
 #
 # No `dataset:` block on purpose — with one, every START tries to recreate
 # the dataset and fails once it exists. The dataset is created once by
 # eval_cases.sql; bump the _V<n> suffix there and here together.
 #
 # agent_name and dataset_name are resolved against the session's current
-# database/schema, so run_eval.sql sets USE SCHEMA first.
+# database/schema (CRICKET_SCORECARDS_EVAL), so run_eval.sql sets USE SCHEMA
+# first.
 #
 # agent_version omitted: targets the live version while the agent has a
 # single version. Pin one (e.g. VERSION$2) once versions are committed and
@@ -13,7 +15,7 @@
 
 evaluation:
   agent_params:
-    agent_name: "CRICKET_SCORECARDS_ANALYST"
+    agent_name: "CRICKET_SCORECARDS_ANALYST_EVAL"
     agent_type: "CORTEX AGENT"
   run_params:
     label: "Cricket scorecards analyst"
