@@ -14,7 +14,7 @@ agent.
 | File | What it is |
 |---|---|
 | `fixture.sql` | One-off zero-copy clone of the raw scorecard lines into `CRICKET_SCORECARDS_EVAL_RAW` |
-| `eval_cases.sql` | Eval table + 29 cases with ground truth, then creates dataset `CRICKET_AGENT_EVALSET_V2` |
+| `eval_cases.sql` | Versioned cases table + 31 cases with ground truth, then creates dataset `CRICKET_AGENT_EVALSET_V3` |
 | `agent_evaluation_config.yaml` | Which agent, which dataset, which metrics |
 | `run_eval.sh` | Starts a run: creates the dataset if new, uploads the config, names the run from git, optionally waits |
 | `run_eval.sql` | Reads a run's status, per-case scores and errors |
@@ -57,9 +57,12 @@ in the cases means that range.
 - **web_context (2)** — real-world background and pre-simulation history via
   web search, labelled and kept separate. Web content changes, so these
   expect behaviour rather than exact text.
-- **skill (4)** — the player-profile, match-report and selector skills (each
-  builds an HTML dashboard with code_execution) and match-journalism
-  (`agent_skills/` at the repo root).
+- **skill (4)** — player-profile, match-report, selector and
+  match-journalism (`agent_skills/` at the repo root), answered in text.
+  None expects `code_execution`, so an unasked-for dashboard costs tool
+  selection.
+- **dashboard (2)** — explicit requests for a visual, the only cases that
+  expect `code_execution`.
 - **out_of_scope (3)** — toss, venue, ball-by-ball. The agent should say
   the data doesn't exist and not call any tool.
 
@@ -87,9 +90,12 @@ not an average of per-match factors.
    run name. Re-run step 3 on any agent or semantic view change, after
    rebuilding the eval target.
 
-**Changing cases:** datasets are immutable. Edit the rows and bump `_V1` →
-`_V2` in both `eval_cases.sql` and `agent_evaluation_config.yaml`; the next
-`run_eval.sh` creates the new dataset.
+**Changing cases:** datasets are immutable. Edit the rows and bump the
+version on the cases table and dataset in `eval_cases.sql` and
+`agent_evaluation_config.yaml` (and the join in `run_eval.sql`); the next
+`run_eval.sh` creates the new dataset, and earlier versions keep their
+results. History: V1 (21 cases), V2 (29; skills always built dashboards),
+V3 (31; dashboards only on request).
 
 **New snapshot:** only deliberately. Re-run `fixture.sql` (replacing the
 clone), rebuild the eval target, re-derive every answer from the eval

@@ -1,6 +1,6 @@
 ---
 name: selector
-description: Advises on team selection — who to pick for a role, a squad place or a full XI — as an HTML comparison dashboard plus a written recommendation covering the recommended option, the incumbent and other options, with conventional team balance and choices for different conditions. Use for "who should play/open/bowl/keep", "pick a side", "should X replace Y" and similar selection questions.
+description: Advises on team selection in text — who to pick for a role, a squad place or a full XI — covering the recommended option, the incumbent and other options, with conventional team balance and choices for different conditions. Use for "who should play/open/bowl/keep", "pick a side", "should X replace Y" and similar selection questions.
 ---
 
 # Selector
@@ -27,7 +27,7 @@ many of the last five matches they filled it).
 
 For the incumbent and every realistic alternative (players from the same
 team who have batted in that part of the order, bowled in that format or
-kept wicket), keep each result's query ID:
+kept wicket):
 
 1. **Season figures in that format:** top-order batting — innings, runs,
    average, strike rate, pooled batting Match Factor; bowling — matches,
@@ -54,32 +54,10 @@ Apply conventional balance for the format:
   all-rounder, a wicketkeeper, four or five bowlers able to take 20
   wickets — usually three or four seamers and a spinner.
 
-## 5. Build the dashboard (code_execution)
+## 5. Write the recommendation
 
-Load each result with `SELECT * FROM TABLE(RESULT_SCAN('<query_id>'))` —
-don't re-query. Use pandas and plotly and write one self-contained file,
-`selection_<team>_<role>_<format>.html` (plotly JS embedded, not from a
-CDN):
-
-1. **Decision header:** team, format, role; three labelled cards —
-   **Recommended**, **Incumbent**, **Other options** — each with the
-   player's headline figures. If the recommendation is the incumbent, say
-   so on the card.
-2. **Comparison chart:** for batting roles, average (x) against strike rate
-   (y); for bowling roles, average (x) against economy (y, lower is
-   better). One labelled point per candidate, sized by matches played,
-   recommended and incumbent highlighted.
-3. **Form strip:** each candidate's last five per-match Match Factors as a
-   small line or bar, reference line at 1.0.
-4. **Comparison table:** every candidate, the format's key figures and
-   pooled Match Factor, sample-size flag.
-5. **Balance panel:** what the recommendation does to keeper, bowling
-   options and batting depth — or "no change to balance".
-
-Footer: "2026 simulated season · Match Factor 1.0 = match average; season
-figures are pooled".
-
-## 6. Write the recommendation that goes with it
+Lead with a short comparison table (candidate, key figures for the format,
+pooled Match Factor, last-five form, sample-size flag), then:
 
 - **Recommended:** the pick and the one or two figures that justify it.
 - **Incumbent:** their case, and why they do or don't keep the place.
@@ -90,3 +68,6 @@ figures are pooled".
 
 All figures are from the 2026 simulated season unless labelled as
 real-world background.
+
+If the user asked for a dashboard, chart or other visual, also follow the
+dashboard skill using the results gathered above.

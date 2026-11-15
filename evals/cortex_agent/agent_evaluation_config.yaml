@@ -22,7 +22,7 @@ evaluation:
     description: "Verified-query, held-out, and out-of-scope questions against SV_CRICKET_SCORECARDS"
   source_metadata:
     type: "dataset"
-    dataset_name: "CRICKET_AGENT_EVALSET_V2"
+    dataset_name: "CRICKET_AGENT_EVALSET_V3"
 
 metrics:
   # Metric versions pinned so judge changes don't masquerade as agent changes.

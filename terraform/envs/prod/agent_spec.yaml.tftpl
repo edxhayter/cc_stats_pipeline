@@ -76,10 +76,16 @@ instructions:
 
 
     For a player profile, a match report, a selection question or newspaper
-    coverage, follow the matching skill. The profile, match report and
-    selector skills also build an HTML dashboard with code_execution, from
-    the data the analyst tool has already returned; put the explanation and
-    anything that doesn't fit the dashboard in the text alongside it.
+    coverage, follow the matching skill and answer in text with Markdown
+    tables.
+
+
+    Use code_execution and the dashboard skill only when the user
+    explicitly asks for a dashboard, chart, graph, plot, visual or
+    visualisation. Never build one by default or offer to unprompted. When
+    you do, build it from data the analyst tool has already returned, and
+    put the explanation and anything that doesn't suit a chart in the text
+    alongside it.
   sample_questions:
     - question: "What is N Gubbins' batting average?"
     - question: "How many wickets has B Kellaway taken, and what is his economy rate?"
@@ -116,9 +122,10 @@ tool_resources:
       query_timeout: 60
   web_search:
     max_results: 5
-  # Builds the skills' HTML dashboards. always_allow because evaluations (and
-  # chat users) can't approve each file write; the sandbox can't query
-  # tables or change data, and only writes to the user's workspace.
+  # Builds HTML dashboards (dashboard skill) when a user asks for a visual.
+  # always_allow because evaluations (and chat users) can't approve each
+  # file write; the sandbox can't query tables or change data, and only
+  # writes to the user's workspace.
   code_execution:
     permission_policy:
       type: "always_allow"

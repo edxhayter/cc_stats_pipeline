@@ -4,8 +4,10 @@
 -- twin's schema) as the current schema. run_eval.sh does this automatically
 -- when the dataset named in agent_evaluation_config.yaml doesn't exist yet;
 -- to run it by hand, USE SCHEMA first. Snowflake datasets are immutable:
--- after changing any row below, bump the version suffix in BOTH the CALL at
--- the bottom and agent_evaluation_config.yaml.
+-- after changing any row below, bump the version suffix on the cases table
+-- and the dataset here and in agent_evaluation_config.yaml. The table is
+-- versioned too, so earlier runs' results still join to the cases they were
+-- scored on (run_eval.sql).
 --
 -- Ground truth comes from the eval marts only: the dbt `eval` target built
 -- over the frozen snapshot in fixture.sql (235 matches, 3 April to 18 July
@@ -25,19 +27,22 @@
 --   web_context      — real-world background and pre-simulation history via
 --                      web search, labelled and kept separate. Web content
 --                      changes, so these expect behaviour, not exact text
---   skill            — player-profile, match-report, selector (each with an
---                      HTML dashboard) and match-journalism skills
+--   skill            — player-profile, match-report, selector and
+--                      match-journalism, answered in text: none should
+--                      build a dashboard unless asked
+--   dashboard        — explicit requests for a visual; these, and only
+--                      these, expect code_execution
 --   out_of_scope     — data the scorecards don't contain; the agent should
 --                      say so and not call the tool
 
-CREATE OR REPLACE TABLE cricket_agent_eval_cases (
+CREATE OR REPLACE TABLE cricket_agent_eval_cases_v3 (
     case_id      VARCHAR,
     category     VARCHAR,
     input_query  VARCHAR,
     ground_truth VARIANT
 );
 
-INSERT INTO cricket_agent_eval_cases
+INSERT INTO cricket_agent_eval_cases_v3
 SELECT column1, column2, column3, PARSE_JSON(column4)
 FROM VALUES
     ('batting_average', 'verified_query',
@@ -152,23 +157,33 @@ FROM VALUES
 
     ('skill_player_profile', 'skill',
      $$Give me a player profile of B Kellaway.$$,
-     $${"ground_truth_output": "An HTML dashboard of the simulated season with written real-world background alongside, in separate, labelled sections. 2026 simulated season for Glamorgan: 20 matches, 681 runs with 24 dismissals (average about 28.4), 54 wickets at an economy of about 4.82, pooled batting Match Factor about 0.90 and pooled bowling Match Factor about 0.92, explained as slightly below the match average. Real-world background from the web: Ben Kellaway, a Glamorgan all-rounder known for bowling spin with either arm. No real-world figures may be mixed into the simulated-season section.",
-        "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}, {"tool_name": "web_search"}, {"tool_name": "code_execution"}]}$$),
+     $${"ground_truth_output": "A text profile (no dashboard, since none was asked for) with the simulated season and real-world background in separate, labelled sections. 2026 simulated season for Glamorgan: 20 matches, 681 runs with 24 dismissals (average about 28.4), 54 wickets at an economy of about 4.82, pooled batting Match Factor about 0.90 and pooled bowling Match Factor about 0.92, explained as slightly below the match average. Real-world background from the web: Ben Kellaway, a Glamorgan all-rounder known for bowling spin with either arm. No real-world figures may be mixed into the simulated-season section.",
+        "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}, {"tool_name": "web_search"}]}$$),
 
     ('skill_match_report', 'skill',
      $$Write a match report for Hampshire v Glamorgan on 1 May 2026.$$,
-     $${"ground_truth_output": "An HTML match dashboard plus a written summary. Hampshire beat Glamorgan by 135 runs in the first-class league. Hampshire made 733 runs for 19 wickets across their two innings; Glamorgan made 598 for 20. F Middleton was man of the match with 175 runs (69 and 106), a batting Match Factor of about 2.20. Key partnerships: 111 for Hampshire's 7th wicket in the first innings and an opening stand of 144 in the second. Innings must be kept separate. The report must not mention or guess the toss, venue or weather.",
-        "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}, {"tool_name": "code_execution"}]}$$),
+     $${"ground_truth_output": "A text match report (no dashboard, since none was asked for). Hampshire beat Glamorgan by 135 runs in the first-class league. Hampshire made 733 runs for 19 wickets across their two innings; Glamorgan made 598 for 20. F Middleton was man of the match with 175 runs (69 and 106), a batting Match Factor of about 2.20. Key partnerships: 111 for Hampshire's 7th wicket in the first innings and an opening stand of 144 in the second. Innings must be kept separate. The report must not mention or guess the toss, venue or weather.",
+        "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}]}$$),
 
     ('skill_selector', 'skill',
      $$Who should open the batting for Hampshire in their next T20?$$,
-     $${"ground_truth_output": "An HTML selection dashboard plus a written recommendation presenting a recommended option, the incumbents and other options. The incumbents are T Albert and J Vince, who opened in Hampshire's most recent T20 (17 July 2026) and through the season. T Albert: 271 runs in 13 innings, average about 20.8, strike rate about 166. J Vince: 209 runs in 14 innings, average about 14.9, strike rate about 125. It should note that T Albert also keeps wicket (he has stumpings), so dropping him affects team balance, and offer options for different conditions for the selector to weigh. All figures must come from the simulated season.",
-        "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}, {"tool_name": "code_execution"}]}$$),
+     $${"ground_truth_output": "A text recommendation (no dashboard, since none was asked for) presenting a recommended option, the incumbents and other options. The incumbents are T Albert and J Vince, who opened in Hampshire's most recent T20 (17 July 2026) and through the season. T Albert: 271 runs in 13 innings, average about 20.8, strike rate about 166. J Vince: 209 runs in 14 innings, average about 14.9, strike rate about 125. It should note that T Albert also keeps wicket (he has stumpings), so dropping him affects team balance, and offer options for different conditions for the selector to weigh. All figures must come from the simulated season.",
+        "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}]}$$),
 
     ('skill_journalism', 'skill',
      $$Write a newspaper report of Hampshire v Glamorgan on 1 May 2026.$$,
      $${"ground_truth_output": "A broadsheet-style match report in Markdown: a headline that makes a judgement, an italic standfirst, a generic byline and dateline, several paragraphs of measured, analytical prose without hyperbole, and a scores-in-brief line. Facts: Hampshire beat Glamorgan by 135 runs in the first-class league; Hampshire 733 for 19 across two innings, Glamorgan 598 for 20; F Middleton man of the match with 175 runs (69 and 106). It must not invent quotes, the toss, the venue or the weather, and must not be signed as or attributed to a real journalist.",
         "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}]}$$),
+
+    ('dashboard_match', 'dashboard',
+     $$Show me a dashboard for the Hampshire v Glamorgan match on 1 May 2026.$$,
+     $${"ground_truth_output": "Builds an HTML dashboard of the match and accompanies it with short text. The facts shown and stated must match the data: Hampshire beat Glamorgan by 135 runs in the first-class league; Hampshire 733 for 19 across two innings, Glamorgan 598 for 20; F Middleton man of the match with 175 runs (69 and 106). It must not show or guess the toss, venue or weather.",
+        "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}, {"tool_name": "code_execution"}]}$$),
+
+    ('dashboard_selection', 'dashboard',
+     $$Can you chart Hampshire's T20 opening options for me?$$,
+     $${"ground_truth_output": "Builds an HTML visual comparing Hampshire's T20 opening options, with short accompanying text. The incumbents are T Albert (271 runs in 13 innings, average about 20.8, strike rate about 166, and the wicketkeeper) and J Vince (209 runs in 14 innings, average about 14.9, strike rate about 125). All figures must come from the simulated season.",
+        "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}, {"tool_name": "code_execution"}]}$$),
 
     ('toss', 'out_of_scope',
      $$Who won the toss in the Hampshire v Glamorgan match on 1 May 2026?$$,
@@ -189,7 +204,7 @@ FROM VALUES
 -- (the YAML dataset block uses ground_truth — the two differ by design).
 CALL SYSTEM$CREATE_EVALUATION_DATASET(
     'Cortex Agent',
-    CURRENT_DATABASE() || '.' || CURRENT_SCHEMA() || '.CRICKET_AGENT_EVAL_CASES',
-    CURRENT_DATABASE() || '.' || CURRENT_SCHEMA() || '.CRICKET_AGENT_EVALSET_V2',
+    CURRENT_DATABASE() || '.' || CURRENT_SCHEMA() || '.CRICKET_AGENT_EVAL_CASES_V3',
+    CURRENT_DATABASE() || '.' || CURRENT_SCHEMA() || '.CRICKET_AGENT_EVALSET_V3',
     OBJECT_CONSTRUCT('query_text', 'INPUT_QUERY', 'expected_tools', 'GROUND_TRUTH')
 );

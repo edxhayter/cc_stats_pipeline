@@ -22,7 +22,7 @@ FROM TABLE(SNOWFLAKE.LOCAL.GET_AI_EVALUATION_DATA(
     'CORTEX AGENT',
     $run_name
 )) r
-LEFT JOIN cricket_agent_eval_cases c ON c.input_query = r.input
+LEFT JOIN cricket_agent_eval_cases_v3 c ON c.input_query = r.input  -- the run's dataset version
 ORDER BY c.category, c.case_id, r.metric_name;
 
 -- 3. Errors/warnings for the run, if any record failed to score.
