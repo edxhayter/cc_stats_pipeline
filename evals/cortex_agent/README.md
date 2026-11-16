@@ -7,7 +7,7 @@ Evaluates `CRICKET_SCORECARDS_ANALYST` with Snowflake's native
 
 | File | What it is |
 |---|---|
-| `eval_cases.sql` | Cases table + 29 cases with ground truth, then (re)creates dataset `CRICKET_AGENT_EVALSET` |
+| `eval_cases.sql` | Cases table + 30 cases with ground truth, then (re)creates dataset `CRICKET_AGENT_EVALSET` |
 | `agent_evaluation_config.yaml` | Which agent and version (`LIVE`), which dataset, which metrics |
 | `run_eval.sh` | Starts a run: rebuilds the dataset if the cases changed, uploads the config, names the run from git, optionally waits |
 | `run_eval.sql` | Reads a run's status, per-case scores and errors |
@@ -32,11 +32,13 @@ answers to common questions.
   the web; "career" questions default to the simulated season.
 - **web_context (2)** — real-world background and pre-simulation history via
   web search, labelled and kept separate.
-- **skill (4)** — player-profile, match-report, selector and
-  match-journalism (`agent_skills/`), in text. None expects
-  `code_execution`, so an unasked-for dashboard costs tool selection.
-- **dashboard (2)** — explicit requests for a visual; the only cases that
-  expect `code_execution`.
+- **skill (5)** — player-profile, match-report and selector
+  (`agent_skills/`) in text, so an unasked-for dashboard costs tool
+  selection; a second selector case for England checks that county
+  players are considered. match-journalism expects `code_execution`,
+  because it lays the article out as a newspaper page.
+- **dashboard (2)** — explicit requests for a visual, with
+  `code_execution`.
 - **fixed_fact (8)** — exact figures that new matches can't change: the
   completed Hampshire v Glamorgan match of 1 May 2026, and April 2026. If
   one changes, dbt logic changed.

@@ -1,6 +1,6 @@
 ---
 name: selector
-description: Advises on team selection in text — who to pick for a role, a squad place or a full XI — covering the recommended option, the incumbent and other options, with conventional team balance and choices for different conditions. Use for "who should play/open/bowl/keep", "pick a side", "should X replace Y" and similar selection questions.
+description: Advises on team selection in text — who to pick for a role, a squad place or a full XI — covering the recommended option, the incumbent and other options (including county players for an international side), with conventional team balance and choices for different conditions. Use for "who should play/open/bowl/keep", "pick a side", "should X replace Y" and similar selection questions.
 ---
 
 # Selector
@@ -13,8 +13,14 @@ call; don't pretend the data settles it.
 
 Establish the team, format (T20, ODI/List A, first-class/Test) and the role
 or slot in question. If the format isn't stated, use the team's most recent
-format in the data and say so. Only consider players who have played for
-that team in the simulated season.
+format in the data and say so.
+
+The data has two levels of cricket:
+
+- **International:** Test, ODI and T20I (20 Over International) matches
+  between countries.
+- **Domestic (English county):** the English FC League (first-class) and
+  the 20 Over Trophy (T20). There is no domestic 50-over competition.
 
 ## 2. Find the incumbent
 
@@ -23,30 +29,49 @@ that format — batting position for batting slots, stumpings for the
 wicketkeeper, overs bowled for bowlers. Note how settled the role is (how
 many of the last five matches they filled it).
 
-## 3. Gather the evidence (cricket_scorecards_analyst)
+## 3. Find the candidates
+
+- **County side:** players who have played for that county this season.
+- **International side:** players who have played for that country this
+  season, **and** county players with a strong domestic record in the
+  matching format — always look at both before recommending. Matching
+  formats: Test ↔ English FC League; T20I ↔ 20 Over Trophy; ODI ↔ both,
+  with a note that there's no domestic 50-over data. For a non-English
+  country, say that domestic cricket outside England isn't in the data.
+
+The data doesn't record nationality. For county candidates for England,
+check eligibility with web_search (team plus surname, as in the
+orchestration rules) and label it as from the web; if it can't be
+confirmed, include the player with the flag "eligibility unconfirmed".
+Leave out anyone confirmed as an overseas player.
+
+## 4. Gather the evidence (cricket_scorecards_analyst)
 
 Ask for everything below in as few analyst queries as possible — ideally
-one or two — rather than one query per item.
+one for the team's own players and one for domestic candidates.
 
-For the incumbent and every realistic alternative (players from the same
-team who have batted in that part of the order, bowled in that format or
-kept wicket):
+For the incumbent and every realistic alternative:
 
-1. **Season figures in that format:** top-order batting — innings, runs,
-   average, strike rate, pooled batting Match Factor; bowling — matches,
-   wickets, average, economy, pooled bowling Match Factor; keeping —
-   catches, stumpings.
-2. **Recent form:** per-match Match Factor in each candidate's last five
-   matches for that team.
+1. **Season figures in the format (and the matching domestic format for
+   county candidates):** batting — innings, runs, average, strike rate,
+   hundreds and fifties; bowling — matches, wickets, average, economy,
+   strike rate; keeping — catches, stumpings.
+2. **Pooled Match Factor for the season** in that format, labelled "season,
+   pooled". Don't use single-match Match Factors in a selection answer.
+3. **Recent form as scores and figures:** each candidate's last five
+   innings (for example 45, 3, 67*, 12, 101) or bowling figures (for
+   example 3-41, 0-28).
 
 Strike rate and economy matter most in T20; average most in first-class.
 Flag any candidate with fewer than five matches or innings in the format.
+Domestic and international figures are different standards: show them in
+separate columns and never add them together.
 
 Bowling type (seam or spin, left or right arm) isn't in the simulated data.
 When balance or conditions depend on it, use web_search for the player's
 real-world bowling style and label it as from the web.
 
-## 4. Check team balance
+## 5. Check team balance
 
 Apply conventional balance for the format:
 
@@ -57,14 +82,16 @@ Apply conventional balance for the format:
   all-rounder, a wicketkeeper, four or five bowlers able to take 20
   wickets — usually three or four seamers and a spinner.
 
-## 5. Write the recommendation
+## 6. Write the recommendation
 
-Lead with a short comparison table (candidate, key figures for the format,
-pooled Match Factor, last-five form, sample-size flag), then:
+Lead with a short comparison table (candidate, current team, level, key
+figures for the format, season pooled Match Factor, last five scores or
+figures, sample-size flag), then:
 
 - **Recommended:** the pick and the one or two figures that justify it.
 - **Incumbent:** their case, and why they do or don't keep the place.
-- **Other options:** what each would offer or cost.
+- **Other options:** what each would offer or cost, including the best
+  domestic candidates for an international side.
 - **Balance:** anything the change breaks or fixes.
 - **If conditions favour…** seam/swing, spin, or a flat batting pitch: who
   moves up and why, for the selector to weigh against what they know.

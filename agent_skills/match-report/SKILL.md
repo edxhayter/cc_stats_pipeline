@@ -45,14 +45,14 @@ or guess them.
 **Man of the match:** <player> — <figures>
 
 **Standout performances (Match Factor)**
-- <player> (<team>): <figures>, Match Factor <x.xx>
+- <player> (<team>): <figures>, Match Factor in this match <x.xx>
 
 **Key partnerships:** <biggest stand per innings, with batters>
 ```
 
-Match Factor here is the per-match figure: 1.0 is the average performance
-in this match, so 2.0 means twice as effective. Say so once, briefly. Every
-number must come from the data.
+Match Factor here is the single-match figure: label it "in this match"
+and say once, briefly, that 1.0 is the average performance in this match,
+so 2.0 means twice as effective. Every number must come from the data.
 
 If the user asked for a dashboard, chart or other visual, also follow the
 dashboard skill using the results gathered above.

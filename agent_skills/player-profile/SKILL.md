@@ -22,11 +22,13 @@ For this player only:
 - Team(s), formats played, matches played. Season totals cover all their
   teams (county and country); split by team only as context.
 - Batting: runs, dismissals, average, strike rate, highest score, fifties
-  and hundreds; pooled batting Match Factor if they batted in the top six.
+  and hundreds; season pooled batting Match Factor if they batted in the
+  top six.
 - Bowling: wickets, runs conceded, average, economy, best figures,
-  five-wicket hauls, pooled bowling Match Factor.
+  five-wicket hauls, season pooled bowling Match Factor.
 - Fielding: catches and stumpings (stumpings mean they keep wicket).
-- Form: their last five matches with the per-match Match Factor.
+- Form: their last five matches as scores and figures (for example 45,
+  67*, 3; 3-41, 0-28), with opponent and date.
 
 Skip any discipline they didn't play rather than reporting zeros.
 
@@ -48,9 +50,10 @@ style, teams, notable career history before 2026. Never take statistics for
 
 **2026 simulated season**
 <key figures as a short table: matches, runs/avg/SR, wickets/avg/econ,
-catches/stumpings, pooled Match Factor(s)>
+catches/stumpings, season pooled Match Factor(s)>
 
-**Form** — last five matches with per-match Match Factor, one line each.
+**Form** — last five matches: opponent, date, scores and figures, one line
+each.
 
 **Background (real world, before the simulation)**
 <two to four sentences from the web, with the source>
