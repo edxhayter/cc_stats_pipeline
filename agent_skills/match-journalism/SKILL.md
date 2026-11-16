@@ -48,9 +48,17 @@ Factor** — it isn't a newspaper statistic.
   innings' run rate, use the bowling side's runs conceded per over in that
   innings (it leaves out byes, so call it the scoring rate, not an exact
   figure).
-- **Series or season:** results in order, the leading run-scorers and
+- **Series:** find it by `series_name` (for example "England v New
+  Zealand Test series, Jun 2026"); never assemble one from dates or match
+  labels. Gather each match's result and margin in order
+  (`series_match_number`), each player's runs and wickets per match, and
+  the series totals, averages and strike rates. If
+  `series_matches_played` is below `series_scheduled_matches`, the series
+  is still in progress: say so, and don't write it up as settled.
+- **Season or competition** (the English FC League, the 20 Over Trophy,
+  or all cricket): results by team, the leading run-scorers and
   wicket-takers with averages and strike rates, hundreds and five-wicket
-  hauls, and each team's record.
+  hauls.
 
 The comparisons are what make the narrative, so gather enough to make them:
 a player's strike rate means something only against the innings' scoring
@@ -84,6 +92,17 @@ Read the story from the figures. Patterns the data supports:
 | Wickets shared evenly across an attack | Collective discipline rather than one match-winner |
 | A big first-innings lead, or a margin of 100+ runs or 8+ wickets | Dominance; the result was never in doubt |
 | A narrow margin | A match that could have gone either way, and the moment that settled it |
+
+For a series, the story is the arc rather than a single moment:
+
+| In the figures | The story it supports |
+|---|---|
+| The order of results (1-0 up, then 1-1, then 2-1) | A lead held, squandered or overturned |
+| One margin far wider or narrower than the rest | The match that decided the series |
+| One player with a third or more of their side's series runs or wickets | A series carried, or a series defined by one player |
+| Steady scores across matches against one big innings and little else | Consistency against a single good day |
+| A side's totals rising or falling match by match | A team growing into the series, or fading |
+| A clean sweep | Dominance; then ask what the losers never solved |
 
 Inferences like these are analysis and are welcome. Events are not: a
 collapse can be described as a collapse, but not as happening "after
@@ -129,7 +148,8 @@ scores in brief.
   figures as evidence, acknowledging the counter-argument before dismissing
   or accepting it.
 - **Pull quote**, and a **"The figures"** box with the four to six numbers
-  that matter most.
+  that matter most — for a series, starting with the series result (for
+  example "New Zealand won 3-0") and each match's margin.
 
 ## Reply first in Markdown
 

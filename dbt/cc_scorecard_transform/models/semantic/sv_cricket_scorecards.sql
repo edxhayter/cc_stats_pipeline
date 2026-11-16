@@ -161,6 +161,10 @@ DIMENSIONS (
     dim_match.match_format AS dim_match.match_format,
     dim_match.result_type AS dim_match.result_type,
     dim_match.result_margin_type AS dim_match.result_margin_type,
+    dim_match.series_name AS dim_match.series_name,
+    dim_match.series_match_number AS dim_match.series_match_number,
+    dim_match.series_matches_played AS dim_match.series_matches_played,
+    dim_match.series_scheduled_matches AS dim_match.series_scheduled_matches,
 
     home_teams.team_name AS home_teams.team_name,
     away_teams.team_name AS away_teams.team_name,
@@ -306,6 +310,10 @@ AI_VERIFIED_QUERIES (
     best_all_rounders AS (
         QUESTION 'Who are the top 10 all-rounders, combining batting and bowling Match Factor, among players who batted and bowled in at least 5 matches?'
         SQL 'SELECT sp.player_name, ((SUM(fpms.mf_bat_own_runs) + SUM(fpms.mf_bat_peer_runs) / NULLIF(SUM(fpms.mf_bat_peer_dismissals), 0)) / (SUM(fpms.mf_bat_own_dismissals) + 1)) / NULLIF(SUM(fpms.mf_bat_peer_runs) / NULLIF(SUM(fpms.mf_bat_peer_dismissals), 0), 0) AS pooled_batting_match_factor, CASE WHEN SUM(fpms.mf_bowl_own_wickets) > 0 THEN (SUM(fpms.mf_bowl_peer_runs_conceded) / NULLIF(SUM(fpms.mf_bowl_peer_wickets), 0)) / NULLIF((SUM(fpms.mf_bowl_own_runs_conceded) + SUM(fpms.mf_bowl_peer_runs_conceded) / NULLIF(SUM(fpms.mf_bowl_peer_wickets), 0)) / (SUM(fpms.mf_bowl_own_wickets) + 1), 0) END AS pooled_bowling_match_factor, (((SUM(fpms.mf_bat_own_runs) + SUM(fpms.mf_bat_peer_runs) / NULLIF(SUM(fpms.mf_bat_peer_dismissals), 0)) / (SUM(fpms.mf_bat_own_dismissals) + 1)) / NULLIF(SUM(fpms.mf_bat_peer_runs) / NULLIF(SUM(fpms.mf_bat_peer_dismissals), 0), 0)) + (CASE WHEN SUM(fpms.mf_bowl_own_wickets) > 0 THEN (SUM(fpms.mf_bowl_peer_runs_conceded) / NULLIF(SUM(fpms.mf_bowl_peer_wickets), 0)) / NULLIF((SUM(fpms.mf_bowl_own_runs_conceded) + SUM(fpms.mf_bowl_peer_runs_conceded) / NULLIF(SUM(fpms.mf_bowl_peer_wickets), 0)) / (SUM(fpms.mf_bowl_own_wickets) + 1), 0) END) AS all_rounder_composite FROM fact_player_match_summary AS fpms JOIN summary_players AS sp ON fpms.player_id = sp.player_id GROUP BY sp.player_name HAVING SUM(CASE WHEN fpms.mf_bat_own_runs IS NOT NULL AND fpms.mf_bowl_own_wickets IS NOT NULL THEN 1 ELSE 0 END) >= 5 ORDER BY all_rounder_composite DESC NULLS LAST LIMIT 10'
+    ),
+    series_results AS (
+        QUESTION 'What were the results of the England v New Zealand Test series in June 2026?'
+        SQL 'SELECT m.series_name, m.series_match_number, m.series_scheduled_matches, m.match_date, ht.team_name AS home_team, at.team_name AS away_team, wt.team_name AS winning_team, m.result_type, m.result_margin_type, m.result_margin_value FROM dim_match AS m JOIN home_teams AS ht ON m.home_team_id = ht.team_id JOIN away_teams AS at ON m.away_team_id = at.team_id LEFT JOIN winning_teams AS wt ON m.winning_team_id = wt.team_id WHERE m.series_name = ''England v New Zealand Test series, Jun 2026'' ORDER BY m.series_match_number'
     ),
     team_match_summary_totals AS (
         QUESTION 'What were Hampshire''s total runs, wickets lost, and result against Glamorgan on 1 May 2026?'

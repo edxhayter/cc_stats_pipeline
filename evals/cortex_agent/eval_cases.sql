@@ -156,6 +156,11 @@ FROM VALUES
      $${"ground_truth_output": "Builds an HTML visual comparing Hampshire's T20 opening options on strike rate and average, with short accompanying text identifying the incumbents (the openers from Hampshire's most recent T20). All figures must come from the 2026 simulated season.",
         "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}, {"tool_name": "code_execution"}]}$$),
 
+    ('series_result', 'fixed_fact',
+     $$Who won the England v New Zealand Test series?$$,
+     $${"ground_truth_output": "New Zealand won the England v New Zealand Test series of June 2026 3-0, winning the first Test by 241 runs, the second by 8 wickets and the third by 5 wickets.",
+        "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}]}$$),
+
     ('match_result_motm', 'fixed_fact',
      $$Who won the match between Hampshire and Glamorgan on 1 May 2026, and who was man of the match?$$,
      $${"ground_truth_output": "Hampshire won by 135 runs. F Middleton was man of the match.",

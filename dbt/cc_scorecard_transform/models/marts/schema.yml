@@ -64,6 +64,39 @@ models:
           - not_null:
               config:
                 where: "result_type = 'WIN'"
+      - name: series_id
+        description: >
+          International series: matches between the same two teams in the
+          same format (TEST, ODI, T20I) with no more than 30 days between
+          consecutive matches. Null for domestic matches.
+        tests:
+          - not_null:
+              config:
+                where: "match_format in ('TEST', 'ODI', 'T20I')"
+      - name: series_name
+        description: >
+          First match's home team v away team, format and month, e.g.
+          "England v New Zealand Test series, Jun 2026".
+      - name: series_match_number
+        description: Position of the match in its series (1 = first).
+      - name: series_matches_played
+        description: Matches in the series so far in the data.
+      - name: series_scheduled_matches
+        description: >
+          Series length from the scorecards' "(of N)" labels (largest in
+          the series, since one label can be wrong); at least the matches
+          played. A series is complete when it equals series_matches_played.
+    tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "series_match_number <= series_matches_played and series_matches_played <= series_scheduled_matches"
+          config:
+            where: "series_id is not null"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "series_id is null"
+          config:
+            where: "match_format not in ('TEST', 'ODI', 'T20I')"
 
   - name: fact_batting
     description: >

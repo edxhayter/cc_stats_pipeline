@@ -57,7 +57,7 @@ INTELLIGENCE ... ADD AGENT` once; otherwise open it from Snowsight → AI & ML
 ### Evals
 
 [evals/cortex_agent/](evals/cortex_agent/README.md) scores the live agent
-with `EXECUTE_AI_EVALUATION`: 30 cases on behaviour (out-of-scope
+with `EXECUTE_AI_EVALUATION`: 31 cases on behaviour (out-of-scope
 questions, semantics, name resolution, simulated data vs web, skills,
 dashboards) plus a few fixed facts that new data can't change. After an
 apply:

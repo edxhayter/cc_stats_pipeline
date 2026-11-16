@@ -145,6 +145,11 @@ reuse benefit to normalizing it out, only an extra join for every query.
 | `result_margin_type` | string enum, nullable | `RUNS` / `WICKETS` / `INNINGS` — `INNINGS` is a real discovery ("won by an innings and N runs", see Source section), not part of the original design |
 | `result_margin_value` | number, nullable | |
 | `man_of_the_match_id` | FK → `dim_player`, nullable | |
+| `series_id` | surrogate key, nullable | International matches only (`TEST`/`ODI`/`T20I`): same two teams, same format, no more than 30 days between consecutive matches. Derived, not parsed from `competition_variant`, because that label can be wrong — the first of three Zimbabwe v Bangladesh ODIs is labelled "Only". Null for domestic matches |
+| `series_name` | string, nullable | First match's home v away, format and month, e.g. "England v New Zealand Test series, Jun 2026" |
+| `series_match_number` | int, nullable | Position in the series |
+| `series_matches_played` | int, nullable | Matches in the series so far in the data |
+| `series_scheduled_matches` | int, nullable | Largest "(of N)" in the series, at least the matches played. Below it, the series is still in progress |
 
 ### `fact_batting`
 
@@ -570,7 +575,8 @@ the first pass and since corrected:
 
 Nine seeded (batting average, wickets/economy, match result + MOTM,
 batting and bowling Match Factor, partnerships, fielding, all-rounders,
-team match totals). Each was validated by running its physical-table
+team match totals), plus a tenth since for series results by
+`series_name`. Each was validated by running its physical-table
 equivalent against the dev marts (full 173-match season, so career totals
 differ from the single-match Ham v Glm figures above — e.g. N Gubbins
 852 runs / 22 dismissals / 38.73). Two fixes surfaced along the way:
