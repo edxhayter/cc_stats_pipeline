@@ -41,15 +41,21 @@ wickets), batting and bowling averages, strike rates, economy rates,
 partnerships, fall of wickets, results and margins. **Don't use Match
 Factor** — it isn't a newspaper statistic.
 
-- **Match:** result and margin, man of the match, each innings' total,
-  overs and run rate, every batter's runs and balls, every bowler's
-  figures, partnerships with their runs and balls, and the fall of wickets.
+- **Match:** result and margin, man of the match, each innings' total;
+  every batter's runs, balls, strike rate and share of the innings' runs
+  (`pct_of_team_innings_runs`); every bowler's figures and economy;
+  partnerships (runs and the two batters) and the fall of wickets. For an
+  innings' run rate, use the bowling side's runs conceded per over in that
+  innings (it leaves out byes, so call it the scoring rate, not an exact
+  figure).
 - **Series or season:** results in order, the leading run-scorers and
   wicket-takers with averages and strike rates, hundreds and five-wicket
   hauls, and each team's record.
 
 The comparisons are what make the narrative, so gather enough to make them:
-a player's strike rate means something only against the innings' run rate.
+a player's strike rate means something only against the innings' scoring
+rate. Partnerships have runs but not balls; read their tempo from the two
+batters' strike rates.
 
 The data has no toss, venue, weather, crowd, sessions (morning, lunch, tea,
 the new ball, the second day) or ball-by-ball detail. Don't mention or
