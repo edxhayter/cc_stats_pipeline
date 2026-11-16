@@ -10,10 +10,6 @@ dbt; the agent is evaluated with Snowflake's native agent evaluations.
 
 ![Pipeline architecture](docs/diagrams/pipeline-architecture-aws.drawio.png)
 
-*The diagram predates some changes: the load task runs daily, the dbt task
-isn't built yet, and the end of the flow is now the Cortex Agent (Analyst,
-web search, code execution, skills) rather than Cortex Analyst alone.*
-
 **Flow:** a local `launchd` job syncs scorecard files to an encrypted S3
 bucket → a Snowflake storage integration/external stage reads from that
 bucket → a scheduled Snowflake Task runs `COPY INTO` a raw table → `dbt
@@ -74,11 +70,6 @@ next step.
 ## CI/CD
 
 ![CI/CD flow](docs/diagrams/cicd-flow-aws.drawio.png)
-
-*The diagram shows the original plan. PR #4 uses GitHub Actions rather than
-CodePipeline/CodeBuild, PR checks are `terraform plan` and `dbt parse`
-rather than a dev-schema build, and the infra pipeline ends with an eval
-run.*
 
 Planned, in draft (PR #4); deploys are manual until it lands. Two
 independent pipelines, both triggered on merge to `main`:

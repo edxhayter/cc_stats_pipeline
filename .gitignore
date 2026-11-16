@@ -35,6 +35,8 @@ profiles.yml
 backend.hcl
 !backend.hcl.example
 crash.log
+*.tfplan
+terraform/**/plan.txt
 crash.*.log
 
 # launchd — personalized plist (real paths/username) stays local only

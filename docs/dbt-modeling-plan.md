@@ -1,7 +1,8 @@
 # dbt Modeling Plan — Cricket Scorecard Transform
 
-Status: design agreed, staging layer not yet built. This doc reflects
-decisions made collaboratively before writing any models — update it as
+Status: built — staging, intermediate, marts and the semantic view are
+in place, and the Cortex Agent on top is live (see the README). This doc
+started as the design agreed before any models were written; update it as
 the design evolves rather than letting it drift from what's actually built.
 
 ## Source
@@ -589,7 +590,7 @@ statements like `DESCRIBE SEMANTIC VIEW`. `dbt run-operation run_sql
 --args '{sql: "..."}'` is the workaround, worth knowing about for any
 future non-`SELECT` diagnostic query.
 
-## Cortex Agent (separate from the semantic view — not yet built)
+## Cortex Agent (separate from the semantic view)
 
 The agent is a distinct Snowflake object from the semantic view:
 `CREATE AGENT` bundles a model choice, tool references (including the
@@ -597,17 +598,17 @@ semantic view), orchestration instructions, and sample questions into one
 schema-level object that Snowsight/the REST API actually talks to.
 
 **This one *does* belong in Terraform**, unlike the semantic view itself
-— confirmed via `snowflake_cortex_agent`, a real resource in the
-`snowflakedb/snowflake` Terraform provider (currently a **preview**
-feature, needs `preview_features_enabled = true` set on the provider).
-The reasoning that kept the semantic view out of Terraform doesn't apply
-here: the agent doesn't need to know mart column structure, it just
-references the semantic view by name — a loose, infrastructure-shaped
-coupling, not a data-modeling one. Its `specification` argument is an
-opaque YAML blob (model, tools, tool_resources, instructions, sample
-questions) that Terraform passes through rather than typing individual
-fields for.
+— via `snowflake_cortex_agent` in the `snowflakedb/snowflake` provider (a
+**preview** feature, enabled in `providers.tf`). The reasoning that kept
+the semantic view out of Terraform doesn't apply here: the agent doesn't
+need to know mart column structure, it just references the semantic view
+by name — a loose, infrastructure-shaped coupling, not a data-modeling
+one. Its `specification` is a YAML blob, rendered from
+`terraform/envs/prod/agent_spec.yaml.tftpl`.
 
-Not yet built — needs design input (model choice, agent persona/
-instructions, which sample questions to surface) before writing the
-Terraform resource.
+Built: `CRICKET_SCORECARDS_ANALYST`, with Cortex Analyst over this
+semantic view, web search for real-world context, code execution for
+dashboards, and skills from `agent_skills/`. Its instructions lean on this
+doc's definitions — totals across all of a player's teams, pooled Match
+Factor for periods, minimum samples. The README covers the agent and its
+evals; `evals/cortex_agent/` holds the cases.
