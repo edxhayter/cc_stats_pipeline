@@ -56,8 +56,8 @@ Factor** — it isn't a newspaper statistic.
   (`series_match_number`), each player's runs and wickets per match, and
   the series totals, averages and strike rates, plus
   `series_matches_played` and `series_scheduled_matches`.
-- **Season or competition** (the English FC League, the 20 Over Trophy,
-  or all cricket): results by team, the leading run-scorers and
+- **Season or competition** (the English FC League, the Challenge
+  Trophy, the 20 Over Trophy, the 100 Ball Trophy, or all cricket): results by team, the leading run-scorers and
   wicket-takers with averages and strike rates, hundreds and five-wicket
   hauls.
 

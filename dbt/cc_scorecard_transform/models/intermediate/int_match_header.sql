@@ -1,6 +1,10 @@
 -- Grain change from here on: one row per match, not per line.
 -- The match_header block is always exactly 2 lines (validated against all
 -- 173 files): "{Team} v {Team}" then "{Competition} - {Date}".
+--
+-- LIST_A is the domestic 50-over Challenge Trophy; HUNDRED is the 100 Ball
+-- Trophy, whose scorecards count balls rather than overs (see
+-- int_bowling_rows and int_innings_totals).
 
 with header_lines as (
 
@@ -43,6 +47,8 @@ with_format as (
             when competition_date_line ilike '%20 Over International%' then 'T20I'
             when competition_date_line ilike '%20 Over Trophy%' then 'T20'
             when competition_date_line ilike '%FC League%' then 'FC_LEAGUE'
+            when competition_date_line ilike '%Challenge Trophy%' then 'LIST_A'
+            when competition_date_line ilike '%100 Ball Trophy%' then 'HUNDRED'
             else 'UNKNOWN'
         end as match_format
     from pivoted
@@ -58,6 +64,8 @@ select
     case match_format
         when 'FC_LEAGUE' then trim(split_part(competition_portion, ' - ', 1))
         when 'T20' then trim(split_part(competition_portion, ' - ', 1))
+        when 'LIST_A' then trim(split_part(competition_portion, ' - ', 1))
+        when 'HUNDRED' then trim(split_part(competition_portion, ' - ', 1))
         when 'TEST' then 'Test Match'
         when 'ODI' then 'One Day International'
         when 'T20I' then '20 Over International'
@@ -66,6 +74,8 @@ select
     case match_format
         when 'FC_LEAGUE' then trim(split_part(competition_portion, ' - ', 2))
         when 'T20' then trim(split_part(competition_portion, ' - ', 2))
+        when 'LIST_A' then trim(split_part(competition_portion, ' - ', 2))
+        when 'HUNDRED' then nullif(trim(split_part(competition_portion, ' - ', 2)), '')
         when 'TEST' then trim(regexp_replace(competition_portion, '\\s*Test Match\\s*', ' '))
         when 'ODI' then trim(regexp_replace(competition_portion, '\\s*One Day International\\s*', ' '))
         when 'T20I' then trim(regexp_replace(competition_portion, '\\s*20 Over International\\s*', ' '))

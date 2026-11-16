@@ -54,7 +54,7 @@ content_bounds as (
         ) over (partition by source_file_name, block_id) as is_batting_block,
         max(
             case
-                when regexp_like(trim(raw_line), '^O\\s+(M|D)\\s+R\\s+W\\s+Econ$')
+                when regexp_like(trim(raw_line), '^(O|B)\\s+(M|D)\\s+R\\s+W\\s+Econ$')
                     then 1
                 else 0
             end

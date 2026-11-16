@@ -5,6 +5,11 @@
 -- bowling_data rows via whitespace-collapse + split, no dismissal-text
 -- complexity to worry about here unlike batting.
 --
+-- The 100 Ball Trophy (HUNDRED) prints balls, dots, runs, wickets and an
+-- economy per 5 balls ("B D R W Econ"). Its balls are converted to the
+-- same overs.balls notation as every other format (20 balls -> 3.2) and its
+-- economy restated per 6 balls, so overs and economy compare across formats.
+--
 -- A bowling block's block_id is always exactly its paired batting block's
 -- block_id + 1 (confirmed against stg_blocks output — exactly one marker
 -- line separates them, every time). team_innings_number/match_innings_sequence
@@ -64,16 +69,24 @@ select
     ic.match_innings_sequence,
     p.bowling_position,
     p.player_name,
-    try_to_number(p.overs_raw) as overs,
     case
-        when ic.match_format in ('T20', 'T20I') then try_to_number(p.maiden_or_dot_raw)
+        when ic.match_format = 'HUNDRED'
+            then floor(try_to_number(p.overs_raw) / 6) + mod(try_to_number(p.overs_raw), 6) / 10
+        else try_to_number(p.overs_raw, 10, 1)
+    end as overs,
+    case
+        when ic.match_format in ('T20', 'T20I', 'HUNDRED') then try_to_number(p.maiden_or_dot_raw)
     end as dots_bowled,
     case
-        when ic.match_format not in ('T20', 'T20I') then try_to_number(p.maiden_or_dot_raw)
+        when ic.match_format not in ('T20', 'T20I', 'HUNDRED') then try_to_number(p.maiden_or_dot_raw)
     end as maidens,
     try_to_number(p.runs_raw) as runs_conceded,
     try_to_number(p.wickets_raw) as wickets,
-    try_to_number(p.econ_raw) as economy
+    case
+        when ic.match_format = 'HUNDRED'
+            then round(try_to_number(p.runs_raw) * 6 / nullif(try_to_number(p.overs_raw), 0), 2)
+        else try_to_number(p.econ_raw, 10, 2)
+    end as economy
 from with_position p
 join innings_context ic
     on p.source_file_name = ic.source_file_name and p.block_id = ic.bowling_block_id

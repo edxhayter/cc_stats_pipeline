@@ -19,15 +19,17 @@ models:
           - not_null
       - name: match_format
         description: >
-          TEST / ODI / T20 / T20I / FC_LEAGUE. T20I ("20 Over International")
+          TEST / ODI / T20 / T20I / FC_LEAGUE / LIST_A / HUNDRED. T20I ("20 Over International")
           was a real discovery, not anticipated in the original design —
           distinct from domestic T20 ("20 Over Trophy"), same bracketed
           "{ordinal} {type} (of N)" text structure as TEST/ODI. Validated
-          against all 173 files: zero UNKNOWN after adding it.
+          against all 173 files: zero UNKNOWN after adding it. LIST_A
+          (domestic 50-over "Challenge Trophy") and HUNDRED ("100 Ball
+          Trophy") arrived later, in the Aug 2026 files.
         tests:
           - accepted_values:
               arguments:
-                values: ['TEST', 'ODI', 'T20', 'T20I', 'FC_LEAGUE']
+                values: ['TEST', 'ODI', 'T20', 'T20I', 'FC_LEAGUE', 'LIST_A', 'HUNDRED']
               config:
                 severity: warn
 
