@@ -145,11 +145,11 @@ reuse benefit to normalizing it out, only an extra join for every query.
 | `result_margin_type` | string enum, nullable | `RUNS` / `WICKETS` / `INNINGS` — `INNINGS` is a real discovery ("won by an innings and N runs", see Source section), not part of the original design |
 | `result_margin_value` | number, nullable | |
 | `man_of_the_match_id` | FK → `dim_player`, nullable | |
-| `series_id` | surrogate key, nullable | International matches only (`TEST`/`ODI`/`T20I`): same two teams, same format, no more than 30 days between consecutive matches. Derived, not parsed from `competition_variant`, because that label can be wrong — the first of three Zimbabwe v Bangladesh ODIs is labelled "Only". Null for domestic matches |
+| `series_id` | surrogate key, nullable | International matches only (`TEST`/`ODI`/`T20I`): same two teams, same format. A match joins the previous one's series when its label follows on ("3rd (of 3)" after "2nd (of 3)") however long the gap — a series can pause for another — or when it's within 30 days and isn't a fresh "1st" after a finished series. Labels alone aren't trusted: the first of three Zimbabwe v Bangladesh ODIs is labelled "Only". Null for domestic matches |
 | `series_name` | string, nullable | First match's home v away, format and month, e.g. "England v New Zealand Test series, Jun 2026" |
 | `series_match_number` | int, nullable | Position in the series |
 | `series_matches_played` | int, nullable | Matches in the series so far in the data |
-| `series_scheduled_matches` | int, nullable | Largest "(of N)" in the series, at least the matches played. Below it, the series is still in progress |
+| `series_scheduled_matches` | int, nullable | Largest "(of N)" in the series, at least the matches played. Above `series_matches_played`, the data holds only part of the series — the rest may be to come or may not have produced a scorecard |
 
 ### `fact_batting`
 

@@ -67,8 +67,10 @@ models:
       - name: series_id
         description: >
           International series: matches between the same two teams in the
-          same format (TEST, ODI, T20I) with no more than 30 days between
-          consecutive matches. Null for domestic matches.
+          same format (TEST, ODI, T20I). A match joins the previous one's
+          series when its "(of N)" label follows on, however long the gap,
+          or when it's within 30 days and doesn't start a new series. Null
+          for domestic matches.
         tests:
           - not_null:
               config:
@@ -85,7 +87,9 @@ models:
         description: >
           Series length from the scorecards' "(of N)" labels (largest in
           the series, since one label can be wrong); at least the matches
-          played. A series is complete when it equals series_matches_played.
+          played. When it's above series_matches_played, the data holds only
+          part of the series: the rest may be still to come or may not have
+          produced a scorecard.
     tests:
       - dbt_utils.expression_is_true:
           arguments:

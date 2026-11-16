@@ -53,8 +53,11 @@ Factor** — it isn't a newspaper statistic.
   labels. Gather each match's result and margin in order
   (`series_match_number`), each player's runs and wickets per match, and
   the series totals, averages and strike rates. If
-  `series_matches_played` is below `series_scheduled_matches`, the series
-  is still in progress: say so, and don't write it up as settled.
+  `series_matches_played` is below `series_scheduled_matches`, the data
+  has only some of the series: say "X of Y matches played so far in the
+  data" and don't write it up as settled or call the series lost or won.
+  A missing match may still be to come or may not have produced a
+  scorecard, so don't guess which.
 - **Season or competition** (the English FC League, the 20 Over Trophy,
   or all cricket): results by team, the leading run-scorers and
   wicket-takers with averages and strike rates, hundreds and five-wicket
