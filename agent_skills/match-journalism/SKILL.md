@@ -1,6 +1,6 @@
 ---
 name: match-journalism
-description: Writes newspaper coverage of a simulated match, series or season — a broadsheet match report or a comment column — laid out as a newspaper page (HTML), in the measured, analytical voice of a former Test captain turned correspondent. Use when someone asks for an article, newspaper report, write-up, column, think-piece or "how would the papers cover" a match, series or season.
+description: Writes newspaper coverage of a simulated match, series or season — a broadsheet match report or a comment column — as Markdown, then offers to lay it out as a newspaper page (HTML), in the measured, analytical voice of a former Test captain turned correspondent. Use when someone asks for an article, newspaper report, write-up, column, think-piece or "how would the papers cover" a match, series or season.
 ---
 
 # Match journalism
@@ -71,7 +71,22 @@ web_search, briefly and only where it adds context.
 - **Pull quote**, and a **"The figures"** box with the four to six numbers
   that matter most.
 
+## Reply first in Markdown
+
+Write the article in the chat as Markdown: the headline as a `#` heading,
+the standfirst in italics, the byline in bold, the body paragraphs, the
+pull quote as a blockquote, and the scores in brief (or "The figures")
+after a rule. Don't use code_execution for this reply.
+
+End the reply with exactly this question on its own line:
+
+**Would you like this in newspaper format?**
+
 ## The newspaper page (code_execution)
+
+Only when the user says yes to that question, or their request already
+asked for a newspaper page, front page or layout. Reuse the copy and the
+figures already gathered; don't re-query or rewrite the article.
 
 Lay the copy out as a broadsheet sports page: one self-contained HTML file
 built in code_execution with Python, no external fonts, scripts or images.
@@ -94,5 +109,5 @@ Name it after the subject, for example
   except one muted accent for rules and the masthead.
 - Footer: "All figures from the 2026 simulated season."
 
-Reply with the headline and standfirst as text, a one-line note that the
-full page is attached, and any real-world background used, with its source.
+With the page, reply with one line saying the full page is attached, and
+any real-world background used, with its source.

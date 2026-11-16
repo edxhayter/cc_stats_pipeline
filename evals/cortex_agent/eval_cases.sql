@@ -28,11 +28,12 @@
 --                      the web; career questions default to the simulation
 --   web_context      — real-world background and pre-simulation history via
 --                      web search, labelled and kept separate
---   skill            — player-profile, match-report and selector (including
---                      county candidates for an international side),
---                      answered in text (no dashboard); match-journalism,
---                      laid out as a newspaper page with code_execution
---   dashboard        — explicit requests for a visual, with code_execution
+--   skill            — player-profile, match-report, selector (including
+--                      county candidates for an international side) and
+--                      match-journalism (Markdown, then the newspaper-page
+--                      offer), answered in text (no dashboard)
+--   dashboard        — explicit requests for a visual; the only cases that
+--                      expect code_execution
 --   fixed_fact       — exact figures that can't change as data is added
 
 CREATE OR REPLACE TABLE cricket_agent_eval_cases (
@@ -142,8 +143,8 @@ FROM VALUES
 
     ('skill_journalism', 'skill',
      $$Write a newspaper report of Hampshire v Glamorgan on 1 May 2026.$$,
-     $${"ground_truth_output": "A broadsheet-style match report laid out as an HTML newspaper page, with the headline and standfirst in the reply: a headline that makes a judgement, an italic standfirst, a generic byline and dateline, several paragraphs of measured, analytical prose without hyperbole, and a scores-in-brief box. It uses traditional figures (runs, balls, bowling figures, averages) and not Match Factor. The masthead must not be a real newspaper's name. Facts: Hampshire beat Glamorgan by 135 runs in the first-class league; Hampshire 733 for 19 across two innings, Glamorgan 598 for 20; F Middleton man of the match with 175 runs (69 and 106). It must not invent quotes, the toss, the venue or the weather, and must not be signed as or attributed to a real journalist.",
-        "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}, {"tool_name": "code_execution"}]}$$),
+     $${"ground_truth_output": "A broadsheet-style match report in Markdown in the reply (no HTML page yet): a headline that makes a judgement, an italic standfirst, a generic byline and dateline, several paragraphs of measured, analytical prose without hyperbole, and a scores-in-brief section, ending with the question "Would you like this in newspaper format?". It uses traditional figures (runs, balls, bowling figures, averages) and not Match Factor. Facts: Hampshire beat Glamorgan by 135 runs in the first-class league; Hampshire 733 for 19 across two innings, Glamorgan 598 for 20; F Middleton man of the match with 175 runs (69 and 106). It must not invent quotes, the toss, the venue or the weather, and must not be signed as or attributed to a real journalist.",
+        "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}]}$$),
 
     ('dashboard_match', 'dashboard',
      $$Show me a dashboard for the Hampshire v Glamorgan match on 1 May 2026.$$,

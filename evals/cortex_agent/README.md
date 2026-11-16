@@ -32,13 +32,13 @@ answers to common questions.
   the web; "career" questions default to the simulated season.
 - **web_context (2)** — real-world background and pre-simulation history via
   web search, labelled and kept separate.
-- **skill (5)** — player-profile, match-report and selector
-  (`agent_skills/`) in text, so an unasked-for dashboard costs tool
-  selection; a second selector case for England checks that county
-  players are considered. match-journalism expects `code_execution`,
-  because it lays the article out as a newspaper page.
-- **dashboard (2)** — explicit requests for a visual, with
-  `code_execution`.
+- **skill (5)** — player-profile, match-report, selector and
+  match-journalism (`agent_skills/`), in text. None expects
+  `code_execution`, so an unasked-for dashboard costs tool selection. A
+  second selector case for England checks that county players are
+  considered; journalism must end by offering the newspaper page.
+- **dashboard (2)** — explicit requests for a visual; the only cases that
+  expect `code_execution`.
 - **fixed_fact (8)** — exact figures that new matches can't change: the
   completed Hampshire v Glamorgan match of 1 May 2026, and April 2026. If
   one changes, dbt logic changed.

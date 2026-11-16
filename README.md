@@ -33,12 +33,13 @@ season. Everything about it is in Terraform (`terraform/envs/prod/`):
   simulated-season figure; web search only for real-world background and
   history from before the simulation (simulated figures win, and the
   real-world record is signposted separately); code execution for the
-  newspaper page and when a visual is asked for.
+  newspaper page (offered after the article) and when a visual is asked
+  for.
 - **Skills** — `agent_skills/<name>/SKILL.md`, uploaded to the
   `AGENT_SKILLS` stage on apply: `player-profile`, `match-report`,
   `selector` (county players included for an international side),
-  `match-journalism` (broadsheet articles and columns, laid out as a
-  newspaper page) and `dashboard` (HTML dashboards, only on request).
+  `match-journalism` (broadsheet articles and columns in Markdown, with an
+  offer to lay them out as a newspaper page) and `dashboard` (HTML dashboards, only on request).
 - **Match Factor** — performance relative to the match average (1.0 =
   average). Pooled across matches by default; a single-match figure only
   for a question about one match, labelled "in this match". Newspaper
