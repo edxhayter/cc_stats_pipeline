@@ -1,94 +1,118 @@
--- One row per partnership x team-innings x match. The Nth wicket
--- partnership is the pair at batting_position N and N+1 — this looks
--- like it should need a full innings simulation (as originally described
--- in docs/dbt-modeling-plan.md), but it mathematically reduces to a
--- simple self-join once you trace through it: batters always enter in
--- position order, and under the standard assumption that dismissals
--- happen in non-decreasing position order (no "batting out of order"
--- reversals — the same assumption every scorecard-only partnership tool
--- relies on, Cricinfo included, since none of them have ball-by-ball
--- either), the higher-positioned member of any pair always survives to
--- partner the next batter in. Working through the induction: partnership
--- 1 = (1,2); position 1 (lower) is assumed out first, 2 survives to
--- partner 3 → partnership 2 = (2,3); and so on — always (N, N+1).
+-- One row per wicket stand x team-innings x match: the runs added for each
+-- wicket, from the fall of wickets, plus the last stand after the final
+-- wicket when there is one.
 --
--- Known limitation, not specially handled: retired-hurt-then-return
--- breaks the "positions enter in strict order" assumption this relies on
--- (confirmed to occur in 1 of 173 files — see int_batting_rows). Flagged
--- rather than silently assumed correct for that match.
+-- Deliberately no batter names. The scorecard doesn't record who was out at
+-- each wicket, so who batted in a stand has to be inferred, and it often
+-- can't be: across the season, about four in ten stands could have been
+-- more than one pair of batters. The earlier pairing (positions N and N+1,
+-- assuming the lower position is always out first) was wrong for at least
+-- 1,295 of 5,382 stands — e.g. Jaiswal (No. 2) out first for 13 in the
+-- 16 Jul 2026 ODI, so the 155 second-wicket stand was Gill and Kohli, not
+-- Jaiswal and Kohli. Stands are reported by wicket ("the second-wicket
+-- stand of 155") instead; the runs are exact.
 
-with batters as (
+with innings as (
 
     select
         source_file_name,
-        batting_team,
+        team,
         team_innings_number,
         match_innings_sequence,
-        batting_position,
-        player_name,
-        dismissal_type
-    from {{ ref('int_batting_rows') }}
-    where not did_not_bat
+        total_runs
+    from {{ ref('int_innings_totals') }}
 
 ),
 
-paired as (
+batted as (
 
     select
-        b1.source_file_name,
-        b1.batting_team,
-        b1.team_innings_number,
-        b1.match_innings_sequence,
-        b1.batting_position as partnership_number,
-        b1.player_name as batter_1_name,
-        b2.player_name as batter_2_name,
-        -- Usually b1 (the lower position) is the one dismissed to end
-        -- this partnership. But at the tail of an all-out innings, the
-        -- not-out survivor isn't always the higher position — e.g. a
-        -- confirmed real case: position 10 not out, position 11 got out,
-        -- ending the innings — the reverse of what "lower falls first"
-        -- would assume. So: use whichever of the pair has an actual
-        -- dismissal; NULL only if both are NOT_OUT (genuinely unbroken,
-        -- e.g. declaration or a chase completed early).
-        case
-            when b1.dismissal_type != 'NOT_OUT' then b1.dismissal_type
-            when b2.dismissal_type != 'NOT_OUT' then b2.dismissal_type
-        end as how_ended
-    from batters b1
-    join batters b2
-        on b1.source_file_name = b2.source_file_name
-        -- match_innings_sequence (not team_innings_number alone) since
-        -- team_innings_number repeats between the two teams — both have
-        -- a "1st innings" — and would otherwise let this self-join pair
-        -- batters across different teams/innings entirely.
-        and b1.match_innings_sequence = b2.match_innings_sequence
-        and b2.batting_position = b1.batting_position + 1
+        source_file_name,
+        match_innings_sequence,
+        -- Counted from dismissals, not names or batting positions: two
+        -- batters can share a scorecard name (both of Sri Lanka's "K
+        -- Mendis" in the 25 Jun 2026 Test), and a retired-hurt batter can
+        -- leave and come back.
+        count_if(dismissal_type = 'NOT_OUT') as not_outs
+    from {{ ref('int_batting_rows') }}
+    where not did_not_bat
+    group by 1, 2
+
+),
+
+wickets as (
+
+    select
+        source_file_name,
+        match_innings_sequence,
+        wicket_number,
+        cumulative_score,
+        cumulative_score - coalesce(
+            lag(cumulative_score) over (
+                partition by source_file_name, match_innings_sequence
+                order by wicket_number
+            ),
+            0
+        ) as stand_runs
+    from {{ ref('int_fow_rows') }}
+
+),
+
+wickets_per_innings as (
+
+    select
+        source_file_name,
+        match_innings_sequence,
+        count(*) as wickets,
+        max(cumulative_score) as last_score
+    from wickets
+    group by 1, 2
+
+),
+
+broken_stands as (
+
+    select
+        i.source_file_name,
+        i.team,
+        i.team_innings_number,
+        i.match_innings_sequence,
+        w.wicket_number as partnership_number,
+        w.stand_runs as partnership_runs,
+        false as is_unbroken
+    from innings i
+    join wickets w
+        on i.source_file_name = w.source_file_name
+        and i.match_innings_sequence = w.match_innings_sequence
+
+),
+
+-- The stand after the final wicket: unbroken when two batters finished not
+-- out (declaration, target reached, overs up); otherwise it ended without a
+-- wicket because a batter retired hurt and nobody was left (the 9-wicket
+-- innings in the 3 Jul 2026 WI v SL Test and 19 Jun 2026 Ssx v Ham).
+last_stands as (
+
+    select
+        i.source_file_name,
+        i.team,
+        i.team_innings_number,
+        i.match_innings_sequence,
+        coalesce(wp.wickets, 0) + 1 as partnership_number,
+        i.total_runs - coalesce(wp.last_score, 0) as partnership_runs,
+        b.not_outs = 2 as is_unbroken
+    from innings i
+    join batted b
+        on i.source_file_name = b.source_file_name
+        and i.match_innings_sequence = b.match_innings_sequence
+    left join wickets_per_innings wp
+        on i.source_file_name = wp.source_file_name
+        and i.match_innings_sequence = wp.match_innings_sequence
+    where b.not_outs = 2
+        or i.total_runs > coalesce(wp.last_score, 0)
 
 )
 
-select
-    p.source_file_name,
-    p.batting_team as team,
-    p.team_innings_number,
-    p.match_innings_sequence,
-    p.partnership_number,
-    p.batter_1_name,
-    p.batter_2_name,
-    p.how_ended,
-    -- unbroken final partnership has no matching fall-of-wickets row at
-    -- wicket_number = partnership_number; fall back to the innings total
-    -- for the runs added since the previous wicket in that case
-    coalesce(f.cumulative_score, it.total_runs) - coalesce(f_prev.cumulative_score, 0) as partnership_runs
-from paired p
-left join {{ ref('int_fow_rows') }} f
-    on p.source_file_name = f.source_file_name
-    and p.match_innings_sequence = f.match_innings_sequence
-    and f.wicket_number = p.partnership_number
-left join {{ ref('int_fow_rows') }} f_prev
-    on p.source_file_name = f_prev.source_file_name
-    and p.match_innings_sequence = f_prev.match_innings_sequence
-    and f_prev.wicket_number = p.partnership_number - 1
-left join {{ ref('int_innings_totals') }} it
-    on p.source_file_name = it.source_file_name
-    and p.batting_team = it.team
-    and p.team_innings_number = it.team_innings_number
+select * from broken_stands
+union all
+select * from last_stands

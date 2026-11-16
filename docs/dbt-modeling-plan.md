@@ -70,14 +70,9 @@ changes from "one row per line" to a structured row per entity.**
   lines) — needed for the contribution-to-team-% measures below, and
   currently the only place those totals exist independent of summing
   `int_batting_rows` per innings (cheaper and avoids recomputation)
-- `int_partnerships` — one row per partnership × team-innings × match.
-  Partnership runs come from consecutive fall-of-wickets deltas (already
-  planned), but the two batters involved can also be derived deterministically:
-  simulate the innings in batting-position order — two batters open, and
-  each time a wicket falls, the dismissed batter (identified by matching
-  the dismissal to whichever of the current pair is out) is replaced by
-  the next batter in `batting_position` order. This gives named partnerships
-  ("1st wicket: Gubbins & Orr, 66") rather than just a runs figure.
+- `int_partnerships` — one row per wicket stand × team-innings × match:
+  the runs added for each wicket, from consecutive fall-of-wickets deltas.
+  **No batter names** — see `fact_partnership` below for why.
   **Confirmed risk, not just hypothetical:** `int_batting_rows` found
   retired-hurt genuinely occurs — Sri Lanka's K Mendis is listed twice in
   the same innings (both innings, in fact) in
@@ -213,33 +208,39 @@ Grain: wicket × team-innings × match.
 | `wicket_number` | int (1–10) | dimension |
 | `cumulative_score` | number | measure — non-additive across wickets (it's already cumulative); useful for partnership derivation |
 
-### `fact_partnership` — implemented
+### `fact_partnership` — implemented (wicket stands)
 
-Grain: partnership × team-innings × match. Built from `int_partnerships`
-(see intermediate layer) — named partnerships, not just a runs figure.
+Grain: wicket stand × team-innings × match — the runs added for each
+wicket, plus the stand after the final wicket when there is one. Reported
+by wicket ("the second-wicket stand of 155"), **without batter names**.
 
-**The pairing turned out not to need a simulation at all.** Working
-through the induction: batters always enter in position order, and under
-the standard scorecard-analysis assumption of non-decreasing dismissal
-order (the same assumption every text-scorecard partnership tool relies
-on, ball-by-ball or not), the higher-positioned member of any pair always
-survives to partner the next arrival — so the Nth partnership is always
-just the pair at `batting_position` N and N+1. A plain self-join.
-Validated against the Ham v Glm match: all 10 `partnership_runs` values
-match the raw fall-of-wickets deltas exactly.
+**Why no names.** The scorecard lists each batter's runs and the score at
+each wicket, but not who was out at each wicket, so the pair in a stand has
+to be inferred. The first version assumed the lower batting position is
+always out first, making the Nth stand positions N and N+1. That's wrong
+whenever the higher position goes first: in the 16 Jul 2026 ODI, Jaiswal
+(No. 2) was out for 13 at 42, so the 155 second-wicket stand was Gill and
+Kohli — the model said Jaiswal and Kohli, which can't be (13 + 100 + 5
+extras = 118). Searching every dismissal order consistent with the
+scorecard (each batter's runs fit the score while they were in; each stand
+is covered by its two batters plus extras; the not-out batters are the ones
+left) showed the old pairing was certainly wrong for at least 1,295 of
+5,382 stands, and that about 38% of stands could have been more than one
+pair — the scorecard simply doesn't settle it. Rather than guess, stands
+are reported by wicket only, and the agent is told never to name the
+batters in a stand.
 
-One real bug caught during validation: `how_ended` initially always used
-the lower-position batter's dismissal, which is wrong at the tail of an
-all-out innings — confirmed real case: position 10 not out, position 11
-dismissed (the reverse of the general pattern). Fixed to check whichever
-of the pair actually has a real dismissal.
+**The last stand.** After the final wicket there's a stand if two batters
+finished not out (`is_unbroken` — declaration, target reached, overs up) or
+if runs were added before a batter retired hurt with nobody left (the
+9-wicket innings in the 3 Jul 2026 WI v SL Test and 19 Jun 2026 Ssx v
+Ham). Detected from not-outs, not batting positions or names: two
+different batters can share a scorecard name (both of Sri Lanka's "K
+Mendis" in the 25 Jun 2026 Test — two players, not a retired-hurt return).
 
-**Known limitation, not fixed:** the retired-hurt match
-("25 Jun 2026-WI v SL (1st TST).txt") produces one nonsensical
-self-partnership row (a player "partnering" themselves) since the
-position-based pairing assumes each position is occupied by one player,
-once. Accepted given the 1-in-173 rarity, not silently hidden — flagged
-in code comments and schema tests.
+Every innings' stands sum to its total
+(`assert_wicket_stands_sum_to_innings_total`), checked across all 632
+innings.
 
 | Column | Type | Role | Notes |
 |---|---|---|---|
@@ -247,10 +248,9 @@ in code comments and schema tests.
 | `team_id` | FK → `dim_team` | dimension | |
 | `team_innings_number` | int (1 or 2) | dimension | |
 | `match_innings_sequence` | int (1–4) | dimension | |
-| `partnership_number` | int (1–10) | dimension | 1 = opening partnership |
-| `batter_1_id` / `batter_2_id` | FK → `dim_player` | dimension | the two batters at the crease for this partnership |
-| `how_ended` | string enum, nullable | dimension | dismissal type that ended it; null if the innings ended with this partnership unbroken (all out never reached — e.g. declaration, chase completed, overs ran out) |
-| `partnership_runs` | number | measure — **summable** | `cumulative_score` at wicket *n* − at wicket *n-1* (or team total, for an unbroken final partnership) |
+| `partnership_number` | int (1–10) | dimension | the wicket the stand was for; 1 = opening stand |
+| `is_unbroken` | boolean | dimension | still going when the innings closed (two batters not out) |
+| `partnership_runs` | number | measure — **summable** | `cumulative_score` at wicket *n* − at wicket *n-1*; for the last stand, the total − the last wicket's score |
 
 ### `fact_fielding` — implemented
 
@@ -477,9 +477,9 @@ approach trustworthy rather than "looks right on three sample files":
 - Per-match batting Match Factor: decide whether to replace the
   never-dismissed stand-in (total runs) with the same +1 blend as bowling.
   Nothing breaks today; it would align the per-match and pooled values.
-- `int_partnerships`' batting-order simulation will need explicit
-  retired-hurt handling — confirmed to occur (1 of 173 files), not just a
-  hypothetical risk (see above). Not yet built.
+- `dim_player` name collisions are real, not hypothetical: Sri Lanka's
+  Kusal and Kamindu Mendis are both "K Mendis" on the scorecards (25 Jun
+  2026 Test), so their figures are merged into one player. Not yet solved.
 
 ## Build order (this doc's scope)
 

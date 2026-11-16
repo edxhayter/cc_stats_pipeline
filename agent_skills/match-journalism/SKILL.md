@@ -44,7 +44,7 @@ Factor** — it isn't a newspaper statistic.
 - **Match:** result and margin, man of the match, each innings' total;
   every batter's runs, balls, strike rate and share of the innings' runs
   (`pct_of_team_innings_runs`); every bowler's figures and economy;
-  partnerships (runs and the two batters) and the fall of wickets. For an
+  the stands for each wicket and the fall of wickets. For an
   innings' run rate, use the bowling side's runs conceded per over in that
   innings (it leaves out byes, so call it the scoring rate, not an exact
   figure).
@@ -65,8 +65,14 @@ Factor** — it isn't a newspaper statistic.
 
 The comparisons are what make the narrative, so gather enough to make them:
 a player's strike rate means something only against the innings' scoring
-rate. Partnerships have runs but not balls; read their tempo from the two
-batters' strike rates.
+rate.
+
+**Stands are by wicket only.** The scorecards don't record who was out at
+each wicket, so the data can't say which two batters made a stand. Write
+"the second-wicket stand of 155 turned the match", never "Gill and Kohli
+added 155", and don't work the pair out from the batting order. A batter's
+own innings can still be the story ("Gill's 106 anchored an innings of
+352"); just don't attach them to a particular stand.
 
 The data has no toss, venue, weather, crowd, sessions (morning, lunch, tea,
 the new ball, the second day) or ball-by-ball detail. Don't mention or
@@ -88,9 +94,9 @@ Read the story from the figures. Patterns the data supports:
 | A batter's strike rate well below the innings' run rate, with a big score | Accumulation: patience, an anchor others played around |
 | Strike rate well above the run rate | Aggression that changed the match's tempo |
 | One batter scoring 35–40% or more of their side's runs | A lone hand; everyone else a passenger |
-| A lower-order stand worth more than the top order's runs | A rearguard, or a top order that failed |
+| A late-wicket stand (7th or later) worth more than the top order's runs | A rearguard, or a top order that failed |
 | Three or more wickets for under 30 on the fall of wickets | A collapse, and where the match turned |
-| A large partnership right after a collapse | A recovery |
+| A large stand for the wicket right after a collapse | A recovery |
 | A bowler's economy well under the match's run rate | Control and pressure, even without wickets |
 | Wickets shared evenly across an attack | Collective discipline rather than one match-winner |
 | A big first-innings lead, or a margin of 100+ runs or 8+ wickets | Dominance; the result was never in doubt |

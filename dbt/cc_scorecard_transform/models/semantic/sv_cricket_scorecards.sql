@@ -47,8 +47,6 @@ TABLES (
     batters AS {{ ref('dim_player') }} PRIMARY KEY (player_id),
     bowlers AS {{ ref('dim_player') }} PRIMARY KEY (player_id),
     motm_players AS {{ ref('dim_player') }} PRIMARY KEY (player_id),
-    partnership_batter_1 AS {{ ref('dim_player') }} PRIMARY KEY (player_id),
-    partnership_batter_2 AS {{ ref('dim_player') }} PRIMARY KEY (player_id),
     fielders AS {{ ref('dim_player') }} PRIMARY KEY (player_id),
     summary_players AS {{ ref('dim_player') }} PRIMARY KEY (player_id),
     summary_teams AS {{ ref('dim_team') }} PRIMARY KEY (team_id),
@@ -80,8 +78,6 @@ RELATIONSHIPS (
 
     fact_partnership (match_id) REFERENCES dim_match (match_id),
     fact_partnership (team_id) REFERENCES batting_teams (team_id),
-    fact_partnership (batter_1_id) REFERENCES partnership_batter_1 (player_id),
-    fact_partnership (batter_2_id) REFERENCES partnership_batter_2 (player_id),
 
     fact_fielding (match_id) REFERENCES dim_match (match_id),
     fact_fielding (team_id) REFERENCES batting_teams (team_id),
@@ -188,9 +184,7 @@ DIMENSIONS (
 
     fact_partnership.team_innings_number AS fact_partnership.team_innings_number,
     fact_partnership.partnership_number AS fact_partnership.partnership_number,
-    fact_partnership.how_ended AS fact_partnership.how_ended,
-    partnership_batter_1.player_name AS partnership_batter_1.player_name,
-    partnership_batter_2.player_name AS partnership_batter_2.player_name,
+    fact_partnership.is_unbroken AS fact_partnership.is_unbroken,
 
     fact_fielding.dismissal_type AS fact_fielding.dismissal_type,
     fact_fielding.caught_and_bowled AS fact_fielding.caught_and_bowled,
@@ -301,7 +295,7 @@ AI_VERIFIED_QUERIES (
     ),
     partnerships_for_team_in_match AS (
         QUESTION 'What were Hampshire''s batting partnerships on 1 May 2026?'
-        SQL 'SELECT t.team_name, fp.team_innings_number, fp.partnership_number, b1.player_name AS batter_1, b2.player_name AS batter_2, fp.partnership_runs, fp.how_ended FROM fact_partnership AS fp JOIN batting_teams AS t ON fp.team_id = t.team_id JOIN partnership_batter_1 AS b1 ON fp.batter_1_id = b1.player_id JOIN partnership_batter_2 AS b2 ON fp.batter_2_id = b2.player_id JOIN dim_match AS m ON fp.match_id = m.match_id WHERE t.team_name = ''Hampshire'' AND m.match_date = ''2026-05-01'' ORDER BY fp.team_innings_number, fp.partnership_number'
+        SQL 'SELECT t.team_name, fp.team_innings_number, fp.partnership_number AS wicket, fp.partnership_runs, fp.is_unbroken FROM fact_partnership AS fp JOIN batting_teams AS t ON fp.team_id = t.team_id JOIN dim_match AS m ON fp.match_id = m.match_id WHERE t.team_name = ''Hampshire'' AND m.match_date = ''2026-05-01'' ORDER BY fp.team_innings_number, fp.partnership_number'
     ),
     fielding_stats_for_player AS (
         QUESTION 'How many catches and stumpings has F Middleton taken?'

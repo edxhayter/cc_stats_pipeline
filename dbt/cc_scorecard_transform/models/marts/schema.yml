@@ -176,10 +176,13 @@ models:
 
   - name: fact_partnership
     description: >
-      Grain: partnership x team-innings x match. See int_partnerships —
-      the retired-hurt match ("25 Jun 2026-WI v SL (1st TST).txt")
-      produces one nonsensical self-partnership row, a known accepted
-      limitation.
+      Grain: wicket stand x team-innings x match — the runs added for each
+      wicket, with no batter names (see int_partnerships). Report stands by
+      wicket: "the second-wicket stand of 155".
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [match_id, match_innings_sequence, partnership_number]
     columns:
       - name: match_id
         tests:
@@ -188,21 +191,17 @@ models:
               arguments:
                 to: ref('dim_match')
                 field: match_id
-      - name: batter_1_id
+      - name: partnership_number
+        description: The wicket the stand was for (1 = opening stand).
         tests:
           - not_null
-          - relationships:
-              arguments:
-                to: ref('dim_player')
-                field: player_id
-      - name: batter_2_id
-        tests:
-          - not_null
-          - relationships:
-              arguments:
-                to: ref('dim_player')
-                field: player_id
       - name: partnership_runs
+        tests:
+          - not_null
+      - name: is_unbroken
+        description: >
+          True for a stand still going when the innings closed (two batters
+          not out).
         tests:
           - not_null
 

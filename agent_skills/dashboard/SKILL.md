@@ -57,7 +57,8 @@ bowling cards with per-match Match Factor, fall of wickets, partnerships).
 3. **Fall of wickets:** score (y) against wicket number (x), one line per
    innings, so collapses and recoveries show as steep or flat stretches.
 4. **Partnerships:** horizontal bars per innings, wicket 1 at the top,
-   labelled with both batters; biggest stand per innings highlighted.
+   labelled by wicket only (the data doesn't record which batters made a
+   stand); biggest stand per innings highlighted.
 5. **Standout performances:** top five batting and top five bowling
    Match Factors in this match across both sides, coloured by team.
 6. **Scorecards:** batting and bowling tables per innings, Match Factor last.

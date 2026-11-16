@@ -23,7 +23,8 @@ one or two — rather than one query per item.
 - **Top performers:** the three highest batting and three highest bowling
   per-match Match Factors across both sides, with their figures (runs off
   balls; wickets for runs off overs).
-- **Partnerships:** the biggest stand in each innings, with both batters.
+- **Partnerships:** the biggest stand in each innings, by wicket. The data
+  doesn't record which batters made a stand, so don't name them.
 - **Fall of wickets:** collapses (three or more wickets for under 30 runs)
   or recoveries worth calling out.
 
@@ -47,7 +48,7 @@ or guess them.
 **Standout performances (Match Factor)**
 - <player> (<team>): <figures>, Match Factor in this match <x.xx>
 
-**Key partnerships:** <biggest stand per innings, with batters>
+**Key partnerships:** <biggest stand per innings, by wicket, e.g. "155 for the second wicket">
 ```
 
 Match Factor here is the single-match figure: label it "in this match"
