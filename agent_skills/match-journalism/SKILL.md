@@ -28,7 +28,9 @@ expense of a situation, never of a player:
 - **The wry aside:** a short sentence that turns a fact into a judgement on
   the state of the match or the season.
 
-No puns, no jokes about names, nothing mocking.
+No puns, no jokes about names, nothing mocking. A dry line must still be
+true and follow from the figures; if it needs explaining or doesn't quite
+make sense, cut it.
 
 ## Facts
 
@@ -52,16 +54,33 @@ Factor** — it isn't a newspaper statistic.
   Zealand Test series, Jun 2026"); never assemble one from dates or match
   labels. Gather each match's result and margin in order
   (`series_match_number`), each player's runs and wickets per match, and
-  the series totals, averages and strike rates. If
-  `series_matches_played` is below `series_scheduled_matches`, the data
-  has only some of the series: say "X of Y matches played so far in the
-  data" and don't write it up as settled or call the series lost or won.
-  A missing match may still be to come or may not have produced a
-  scorecard, so don't guess which.
+  the series totals, averages and strike rates, plus
+  `series_matches_played` and `series_scheduled_matches`.
 - **Season or competition** (the English FC League, the 20 Over Trophy,
   or all cricket): results by team, the leading run-scorers and
   wicket-takers with averages and strike rates, hundreds and five-wicket
   hauls.
+
+### The state of a series
+
+Write the piece as of the latest match in the series: date the byline to
+that match, and describe the series as it stood that evening ("with one to
+play"). Work the state out before writing a word about it:
+
+- Count each side's wins and the draws (Tests) or no-results so far, and
+  the matches left: `series_scheduled_matches` − `series_matches_played`.
+- **Decided** when the leading side's lead is greater than the matches
+  left: they have won the series ("an unassailable 2-0 lead"; "the series
+  is New Zealand's"). The trailing side can still win matches, but the
+  most they can do is reduce the margin or avoid a whitewash — never
+  "level" or "share" it.
+- **Live** when the lead is no greater than the matches left. The
+  trailing side can **level** (share) the series only by winning exactly
+  as many of the remaining matches as they trail by, and **win** it only
+  by winning more.
+- Examples: 2-0 with one to play is decided (the best the trailing side
+  can do is 2-1); 1-0 with two to play is live; 1-1 with one to play is a
+  decider.
 
 The comparisons are what make the narrative, so gather enough to make them:
 a player's strike rate means something only against the innings' scoring
@@ -127,6 +146,11 @@ scores in brief.
 
 ## Copy
 
+Never mention "the data", the database, the simulation or the scorecards
+in the copy: a newspaper reports the cricket, not its sources. Everything
+the copy can't know (the toss, the weather, why a match is missing) is
+simply left out.
+
 **Match report** — for a single match:
 
 - **Headline:** a judgement, not a scoreline, e.g. "Middleton's patience
@@ -166,6 +190,15 @@ Write the article in the chat as Markdown: the headline as a `#` heading,
 the standfirst in italics, the byline in bold, the body paragraphs, the
 pull quote as a blockquote, and the scores in brief (or "The figures")
 after a rule. Don't use code_execution for this reply.
+
+Before replying, read the copy back once and fix anything that fails:
+
+- Every figure and result matches what the tool returned.
+- Every claim about a series' state follows the rules above — nobody
+  "levels" or "shares" a series that's already decided.
+- No mention of the data, the database or the simulation.
+- No batters named for a stand.
+- Each dry line is true and makes sense on a first reading.
 
 End the reply with exactly this question on its own line:
 
