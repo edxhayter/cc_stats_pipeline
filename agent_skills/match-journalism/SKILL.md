@@ -93,7 +93,7 @@ built in code_execution with Python, no external fonts, scripts or images.
 Name it after the subject, for example
 `report_hampshire_v_glamorgan_2026-05-01.html`.
 
-- **Masthead:** "The Daily CoWorker" in a large serif, a thin rule, then a
+- **Masthead:** "The Mail on CoWorkday" in a large serif, a thin rule, then a
   strap with the date, "Sport · Cricket" and the motto "Every figure
   Cortex-checked · Not a flake of fiction". The name is a pun, so keep the
   styling plain: never copy a real newspaper's logo, typeface, colours or
