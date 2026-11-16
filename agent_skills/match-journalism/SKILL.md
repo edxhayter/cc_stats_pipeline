@@ -9,15 +9,26 @@ description: Writes newspaper coverage of a simulated match, series or season �
 
 Write as a seasoned broadsheet cricket correspondent who once captained his
 country: measured, authoritative and quietly wry. The analysis comes from
-inside the game — technique, tactics, captaincy, what a session or spell
+inside the game — technique, tactics, captaincy, what an innings or a spell
 asked of the players — and is set against the longer arc of the season.
 Understatement over hyperbole: no "sensational", "stunning" or exclamation
 marks. Long, balanced sentences with the occasional short one for weight.
-Dry wit at the expense of situations, never of individuals. Judgements are
-firm but earned by the evidence.
+Judgements are firm but earned by the evidence.
 
 This is a style, not an identity. Don't sign it as, attribute it to, or
 claim to be any real journalist.
+
+**Dry wit** — at least two or three touches per piece, always at the
+expense of a situation, never of a player:
+
+- **Understatement:** "Glamorgan will have had better weeks."
+- **Juxtaposition:** set two figures side by side and let the reader draw
+  the conclusion — the tail's partnership against the top order's total, a
+  bowler's economy against the match's run rate.
+- **The wry aside:** a short sentence that turns a fact into a judgement on
+  the state of the match or the season.
+
+No puns, no jokes about names, nothing mocking.
 
 ## Facts
 
@@ -28,21 +39,57 @@ Use the figures a newspaper would print: runs and balls, fifties and
 hundreds, wickets and runs conceded, bowling figures (overs-maidens-runs-
 wickets), batting and bowling averages, strike rates, economy rates,
 partnerships, fall of wickets, results and margins. **Don't use Match
-Factor** — it isn't a newspaper statistic. Choose standout performers by
-their figures and their effect on the result.
+Factor** — it isn't a newspaper statistic.
 
-- **Match:** result and margin, man of the match, innings totals, the
-  leading batting and bowling figures, the biggest partnerships and the fall
-  of wickets.
+- **Match:** result and margin, man of the match, each innings' total,
+  overs and run rate, every batter's runs and balls, every bowler's
+  figures, partnerships with their runs and balls, and the fall of wickets.
 - **Series or season:** results in order, the leading run-scorers and
-  wicket-takers with averages, and any hundreds or five-wicket hauls.
+  wicket-takers with averages and strike rates, hundreds and five-wicket
+  hauls, and each team's record.
 
-The data has no toss, venue, weather, crowd or ball-by-ball detail. Don't
+The comparisons are what make the narrative, so gather enough to make them:
+a player's strike rate means something only against the innings' run rate.
+
+The data has no toss, venue, weather, crowd, sessions (morning, lunch, tea,
+the new ball, the second day) or ball-by-ball detail. Don't mention or
 invent them, and don't invent quotes: no player, captain or coach "said"
-anything. Analysis may infer from the figures (a collapse of four wickets
-for 20 runs speaks for itself); it may not make up events. Real-world
+anything. Don't claim to know what anyone intended or felt. Real-world
 background (a player's reputation or career before 2026) may come from
 web_search, briefly and only where it adds context.
+
+## Find the story before writing
+
+Decide what the match, series or season was *about* — one central story,
+two at most — and build the piece around it. Every paragraph should serve
+it; performances that don't are left to the scores in brief.
+
+Read the story from the figures. Patterns the data supports:
+
+| In the figures | The story it supports |
+|---|---|
+| A batter's strike rate well below the innings' run rate, with a big score | Accumulation: patience, an anchor others played around |
+| Strike rate well above the run rate | Aggression that changed the match's tempo |
+| One batter scoring 35–40% or more of their side's runs | A lone hand; everyone else a passenger |
+| A lower-order stand worth more than the top order's runs | A rearguard, or a top order that failed |
+| Three or more wickets for under 30 on the fall of wickets | A collapse, and where the match turned |
+| A large partnership right after a collapse | A recovery |
+| A bowler's economy well under the match's run rate | Control and pressure, even without wickets |
+| Wickets shared evenly across an attack | Collective discipline rather than one match-winner |
+| A big first-innings lead, or a margin of 100+ runs or 8+ wickets | Dominance; the result was never in doubt |
+| A narrow margin | A match that could have gone either way, and the moment that settled it |
+
+Inferences like these are analysis and are welcome. Events are not: a
+collapse can be described as a collapse, but not as happening "after
+lunch" or "under cloud cover".
+
+## Figures in the prose
+
+At most two or three figures per paragraph, and each one makes a point in
+its sentence — "his 106 came at barely half the rate of the innings around
+it" rather than "he scored 106 off 210 balls". Never write a paragraph that
+lists several players' figures in turn; the full detail belongs in the
+scores in brief.
 
 ## Copy
 
@@ -52,13 +99,20 @@ web_search, briefly and only where it adds context.
   leaves Glamorgan with nowhere to hide".
 - **Standfirst:** one sentence with the result and why it matters.
 - **Byline:** "By our Cricket Correspondent", with the competition and date.
-- **Body:** an opening paragraph with the decisive fact and its meaning;
-  four to six paragraphs on how the match turned, the key innings and
-  spells with their figures, and a passage on technique or tactics; a
-  closing paragraph on what it means for the teams or the season.
+- **Body**, five to seven paragraphs:
+  1. The story in a sentence or two, and the result.
+  2. The turning point — the partnership, collapse or spell that decided it.
+  3. The central performance, read through its figures: tempo, share of
+     the runs, what it did to the match.
+  4. The other side of it: why the losers lost, as analysis, not blame.
+  5. A passage on technique, tactics or captaincy that the figures suggest
+     (who bowled most, how the bowling was shared, how the innings was
+     paced).
+  6. The verdict: what it means for the teams or the season, ending on a
+     dry line.
 - **Pull quote:** a line from your own copy, not an invented quotation.
-- **Scores in brief:** each team's innings (runs/wickets), the result and
-  margin, and the man of the match.
+- **Scores in brief:** each team's innings (runs/wickets), the top scores
+  and best bowling, the result and margin, and the man of the match.
 
 **Column** — for a series, a season, a player or a theme:
 
