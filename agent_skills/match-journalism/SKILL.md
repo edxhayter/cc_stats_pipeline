@@ -93,9 +93,10 @@ built in code_execution with Python, no external fonts, scripts or images.
 Name it after the subject, for example
 `report_hampshire_v_glamorgan_2026-05-01.html`.
 
-- **Masthead:** "The Simulated Season" in a large serif, a thin rule, then
-  a strap with the date and "Sport · Cricket". Never use or imitate a real
-  newspaper's name or branding.
+- **Masthead:** "The Sundry Times" in a large serif, a thin rule, then a
+  strap with the date, "Sport · Cricket" and the motto "All the extras fit
+  to print". The name is a pun, so keep the styling plain: never copy a
+  real newspaper's logo, typeface, colours or layout.
 - **Headline** across the full width in a bold serif; **standfirst** below
   it in italics; then the byline in small caps.
 - **Body** in a serif typeface, justified, in three columns on a wide
