@@ -24,6 +24,19 @@ didn't, answer in text and Markdown tables instead and don't use this skill.
 
 ## Conventions for every dashboard
 
+- **Charts, not cards.** Every panel below the header is a chart or a
+  table that answers a question someone would ask about the subject. At
+  most four headline numbers in the header band; no panels of notes or
+  bullet points — commentary goes in the accompanying text.
+- **Give context.** A figure on its own says little: show it against a
+  benchmark (the format average for every qualifying player, the team's
+  average, the opposition) or against time. One extra analyst query for
+  the benchmark is worth it.
+- **Title each chart with its finding**, not its axes: "Albert scores
+  faster than any other Hampshire opener", not "Strike rate by player".
+- Match Factor is the season pooled figure, labelled "season, pooled",
+  except on a single-match dashboard, where it's labelled "in this match".
+  Never show single-match Match Factors as a form line.
 - Simulated-season data only. Real-world background from web_search goes in
   the accompanying text, never in the dashboard.
 - Wherever Match Factor appears, draw a reference line at 1.0 (the match
@@ -44,40 +57,55 @@ bowling cards with per-match Match Factor, fall of wickets, partnerships).
 3. **Fall of wickets:** score (y) against wicket number (x), one line per
    innings, so collapses and recoveries show as steep or flat stretches.
 4. **Partnerships:** horizontal bars per innings, wicket 1 at the top,
-   labelled with both batters; biggest stand per innings highlighted.
+   labelled by wicket only (the data doesn't record which batters made a
+   stand); biggest stand per innings highlighted.
 5. **Standout performances:** top five batting and top five bowling
-   per-match Match Factors across both sides, coloured by team.
+   Match Factors in this match across both sides, coloured by team.
 6. **Scorecards:** batting and bowling tables per innings, Match Factor last.
 
 ## Layout: player profile
 
-Data as in the player-profile skill (summary by format, pooled Match
-Factor, match-by-match record).
+Data as in the player-profile skill, plus each innings and bowling spell
+this season and the format averages for qualifying players.
 
-1. **Header:** player, team, role, formats played.
-2. **KPI tiles:** matches; runs, average, strike rate; wickets, average,
-   economy; catches/stumpings; pooled batting and bowling Match Factor.
-3. **Form:** per-match Match Factor over the season, one line per
-   discipline, last five matches highlighted.
-4. **Output by match:** runs and wickets per match, labelled by opponent.
-5. **By format:** key figures split by format.
+1. **Header:** player, team, role, formats played; up to four headline
+   numbers.
+2. **Against the field:** for each format they played, their batting
+   average (x) against strike rate (y) — or bowling average against
+   economy — as a highlighted point among every qualifying player in that
+   format, with dashed lines at the format averages.
+3. **Season in innings:** runs per innings as bars in date order (not-outs
+   marked), coloured by format, with a line for their running average.
+   Wickets per match the same way for bowlers.
+4. **Pooled Match Factor through the season:** the running (cumulative)
+   pooled figure after each match, built from the per-match ingredients,
+   with a reference line at 1.0 — shows whether their season is building
+   or fading without single-match noise.
+5. **By format and level:** grouped bars of key figures for each format,
+   international and county side by side.
 
 ## Layout: selection
 
-Data as in the selector skill (candidates' season figures in the format,
-last-five-match form, balance check).
+Data as in the selector skill, plus the format averages for every
+qualifying player (domestic and international) as the benchmark.
 
-1. **Decision header:** team, format, role; three cards — **Recommended**,
-   **Incumbent**, **Other options** — with headline figures.
-2. **Comparison chart:** batting roles — average (x) against strike rate
-   (y); bowling roles — average (x) against economy (y, lower is better).
-   One labelled point per candidate, sized by matches, recommended and
-   incumbent highlighted.
-3. **Form strip:** each candidate's last five per-match Match Factors.
-4. **Comparison table:** every candidate, key figures, pooled Match Factor,
-   sample-size flag.
-5. **Balance panel:** what the pick does to keeper, bowling options and
-   batting depth.
+1. **Decision header:** team, format, role; one line naming the
+   recommended pick and the incumbent, with the deciding figure for each.
+2. **The field:** batting roles — average (x) against strike rate (y);
+   bowling roles — average (x) against economy (y, lower is better). Every
+   candidate labelled, sized by innings or matches, coloured by level
+   (international or county), recommended and incumbent ringed; dashed
+   lines at the format averages split the chart into quadrants, each
+   labelled ("fast and reliable", "reliable but slow" and so on).
+3. **Form:** small multiples, one per candidate, of runs per innings (or
+   wickets per match) over the season in date order, last five
+   highlighted, not-outs marked — the same y-axis for every candidate.
+4. **County v international:** for candidates with both, a dumbbell chart
+   of their average (and strike rate or economy) at each level.
+5. **Season pooled Match Factor:** horizontal bars per candidate with a
+   reference line at 1.0, each labelled with its sample size.
+6. **Comparison table:** every candidate, key figures, last five scores or
+   figures, sample-size and eligibility flags.
 
 ## Layout: anything else
 

@@ -32,15 +32,18 @@ season. Everything about it is in Terraform (`terraform/envs/prod/`):
 - **Tools** — Cortex Analyst over `SV_CRICKET_SCORECARDS` for every
   simulated-season figure; web search only for real-world background and
   history from before the simulation (simulated figures win, and the
-  real-world record is signposted separately); code execution only when a
-  visual is asked for.
+  real-world record is signposted separately); code execution for the
+  newspaper page (offered after the article) and when a visual is asked
+  for.
 - **Skills** — `agent_skills/<name>/SKILL.md`, uploaded to the
   `AGENT_SKILLS` stage on apply: `player-profile`, `match-report`,
-  `selector`, `match-journalism` (broadsheet-style articles and columns) and
-  `dashboard` (HTML dashboards, only on request).
+  `selector` (county players included for an international side),
+  `match-journalism` (broadsheet articles and columns in Markdown, with an
+  offer to lay them out as a newspaper page) and `dashboard` (HTML dashboards, only on request).
 - **Match Factor** — performance relative to the match average (1.0 =
-  average). Per-match figures for single games; pooled across matches for a
-  season or other period. See
+  average). Pooled across matches by default; a single-match figure only
+  for a question about one match, labelled "in this match". Newspaper
+  copy uses traditional figures instead. See
   [docs/dbt-modeling-plan.md](docs/dbt-modeling-plan.md#advanced-metrics-match-factor).
 
 Terraform updates the agent's live version directly, which is what
@@ -54,7 +57,7 @@ INTELLIGENCE ... ADD AGENT` once; otherwise open it from Snowsight → AI & ML
 ### Evals
 
 [evals/cortex_agent/](evals/cortex_agent/README.md) scores the live agent
-with `EXECUTE_AI_EVALUATION`: 29 cases on behaviour (out-of-scope
+with `EXECUTE_AI_EVALUATION`: 31 cases on behaviour (out-of-scope
 questions, semantics, name resolution, simulated data vs web, skills,
 dashboards) plus a few fixed facts that new data can't change. After an
 apply:

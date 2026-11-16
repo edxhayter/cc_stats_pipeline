@@ -64,6 +64,41 @@ models:
           - not_null:
               config:
                 where: "result_type = 'WIN'"
+      - name: series_id
+        description: >
+          International series: matches between the same two teams in the
+          same format (TEST, ODI, T20I) with no more than 30 days between
+          consecutive matches. Null for domestic matches.
+        tests:
+          - not_null:
+              config:
+                where: "match_format in ('TEST', 'ODI', 'T20I')"
+      - name: series_name
+        description: >
+          First match's home team v away team, format and month, e.g.
+          "England v New Zealand Test series, Jun 2026".
+      - name: series_match_number
+        description: Position of the match in its series (1 = first).
+      - name: series_matches_played
+        description: Matches in the series so far in the data.
+      - name: series_scheduled_matches
+        description: >
+          Series length from the scorecards' "(of N)" labels (largest in
+          the series, since one label can be wrong); at least the matches
+          played. When it's above series_matches_played, the data holds only
+          part of the series: the rest may be still to come or may not have
+          produced a scorecard.
+    tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "series_match_number <= series_matches_played and series_matches_played <= series_scheduled_matches"
+          config:
+            where: "series_id is not null"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "series_id is null"
+          config:
+            where: "match_format not in ('TEST', 'ODI', 'T20I')"
 
   - name: fact_batting
     description: >
@@ -141,10 +176,13 @@ models:
 
   - name: fact_partnership
     description: >
-      Grain: partnership x team-innings x match. See int_partnerships —
-      the retired-hurt match ("25 Jun 2026-WI v SL (1st TST).txt")
-      produces one nonsensical self-partnership row, a known accepted
-      limitation.
+      Grain: wicket stand x team-innings x match — the runs added for each
+      wicket, with no batter names (see int_partnerships). Report stands by
+      wicket: "the second-wicket stand of 155".
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [match_id, match_innings_sequence, partnership_number]
     columns:
       - name: match_id
         tests:
@@ -153,21 +191,17 @@ models:
               arguments:
                 to: ref('dim_match')
                 field: match_id
-      - name: batter_1_id
+      - name: partnership_number
+        description: The wicket the stand was for (1 = opening stand).
         tests:
           - not_null
-          - relationships:
-              arguments:
-                to: ref('dim_player')
-                field: player_id
-      - name: batter_2_id
-        tests:
-          - not_null
-          - relationships:
-              arguments:
-                to: ref('dim_player')
-                field: player_id
       - name: partnership_runs
+        tests:
+          - not_null
+      - name: is_unbroken
+        description: >
+          True for a stand still going when the innings closed (two batters
+          not out).
         tests:
           - not_null
 

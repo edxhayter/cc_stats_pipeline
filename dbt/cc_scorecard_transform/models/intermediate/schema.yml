@@ -285,20 +285,14 @@ models:
 
   - name: int_partnerships
     description: >
-      One row per partnership x team-innings x match. The Nth partnership
-      is the pair at batting_position N and N+1 (self-join, not a full
-      simulation — see model file for why this reduces mathematically to
-      that under the standard scorecard-analysis assumption of
-      non-decreasing dismissal-position order). Validated against the
-      Ham v Glm match: all 10 partnership_runs values match the raw
-      fall-of-wickets deltas exactly. how_ended correctly handles the
-      tail-of-innings edge case where the not-out survivor isn't the
-      higher position (confirmed real case: position 10 not out,
-      position 11 dismissed — the reverse of the general assumption).
-      Known limitation, not fixed: the one file with retired-hurt
-      (K Mendis, "25 Jun 2026-WI v SL (1st TST).txt") produces a
-      nonsensical self-partnership row (a player "partnering" themselves)
-      — accepted given the 1-in-173 rarity, not silently hidden.
+      One row per wicket stand x team-innings x match: the runs added for
+      each wicket, from the fall of wickets, plus the stand after the final
+      wicket when there is one (unbroken when two batters finished not out;
+      otherwise ended by a retirement). No batter names: the scorecard
+      doesn't record who was out at each wicket, and about four in ten
+      stands could have been more than one pair. The earlier N / N+1
+      pairing was wrong for at least 1,295 stands. Every innings' stands
+      sum to its total (assert_wicket_stands_sum_to_innings_total).
     columns:
       - name: source_file_name
         tests:

@@ -47,8 +47,6 @@ TABLES (
     batters AS {{ ref('dim_player') }} PRIMARY KEY (player_id),
     bowlers AS {{ ref('dim_player') }} PRIMARY KEY (player_id),
     motm_players AS {{ ref('dim_player') }} PRIMARY KEY (player_id),
-    partnership_batter_1 AS {{ ref('dim_player') }} PRIMARY KEY (player_id),
-    partnership_batter_2 AS {{ ref('dim_player') }} PRIMARY KEY (player_id),
     fielders AS {{ ref('dim_player') }} PRIMARY KEY (player_id),
     summary_players AS {{ ref('dim_player') }} PRIMARY KEY (player_id),
     summary_teams AS {{ ref('dim_team') }} PRIMARY KEY (team_id),
@@ -80,8 +78,6 @@ RELATIONSHIPS (
 
     fact_partnership (match_id) REFERENCES dim_match (match_id),
     fact_partnership (team_id) REFERENCES batting_teams (team_id),
-    fact_partnership (batter_1_id) REFERENCES partnership_batter_1 (player_id),
-    fact_partnership (batter_2_id) REFERENCES partnership_batter_2 (player_id),
 
     fact_fielding (match_id) REFERENCES dim_match (match_id),
     fact_fielding (team_id) REFERENCES batting_teams (team_id),
@@ -161,6 +157,10 @@ DIMENSIONS (
     dim_match.match_format AS dim_match.match_format,
     dim_match.result_type AS dim_match.result_type,
     dim_match.result_margin_type AS dim_match.result_margin_type,
+    dim_match.series_name AS dim_match.series_name,
+    dim_match.series_match_number AS dim_match.series_match_number,
+    dim_match.series_matches_played AS dim_match.series_matches_played,
+    dim_match.series_scheduled_matches AS dim_match.series_scheduled_matches,
 
     home_teams.team_name AS home_teams.team_name,
     away_teams.team_name AS away_teams.team_name,
@@ -184,9 +184,7 @@ DIMENSIONS (
 
     fact_partnership.team_innings_number AS fact_partnership.team_innings_number,
     fact_partnership.partnership_number AS fact_partnership.partnership_number,
-    fact_partnership.how_ended AS fact_partnership.how_ended,
-    partnership_batter_1.player_name AS partnership_batter_1.player_name,
-    partnership_batter_2.player_name AS partnership_batter_2.player_name,
+    fact_partnership.is_unbroken AS fact_partnership.is_unbroken,
 
     fact_fielding.dismissal_type AS fact_fielding.dismissal_type,
     fact_fielding.caught_and_bowled AS fact_fielding.caught_and_bowled,
@@ -297,7 +295,7 @@ AI_VERIFIED_QUERIES (
     ),
     partnerships_for_team_in_match AS (
         QUESTION 'What were Hampshire''s batting partnerships on 1 May 2026?'
-        SQL 'SELECT t.team_name, fp.team_innings_number, fp.partnership_number, b1.player_name AS batter_1, b2.player_name AS batter_2, fp.partnership_runs, fp.how_ended FROM fact_partnership AS fp JOIN batting_teams AS t ON fp.team_id = t.team_id JOIN partnership_batter_1 AS b1 ON fp.batter_1_id = b1.player_id JOIN partnership_batter_2 AS b2 ON fp.batter_2_id = b2.player_id JOIN dim_match AS m ON fp.match_id = m.match_id WHERE t.team_name = ''Hampshire'' AND m.match_date = ''2026-05-01'' ORDER BY fp.team_innings_number, fp.partnership_number'
+        SQL 'SELECT t.team_name, fp.team_innings_number, fp.partnership_number AS wicket, fp.partnership_runs, fp.is_unbroken FROM fact_partnership AS fp JOIN batting_teams AS t ON fp.team_id = t.team_id JOIN dim_match AS m ON fp.match_id = m.match_id WHERE t.team_name = ''Hampshire'' AND m.match_date = ''2026-05-01'' ORDER BY fp.team_innings_number, fp.partnership_number'
     ),
     fielding_stats_for_player AS (
         QUESTION 'How many catches and stumpings has F Middleton taken?'
@@ -306,6 +304,10 @@ AI_VERIFIED_QUERIES (
     best_all_rounders AS (
         QUESTION 'Who are the top 10 all-rounders, combining batting and bowling Match Factor, among players who batted and bowled in at least 5 matches?'
         SQL 'SELECT sp.player_name, ((SUM(fpms.mf_bat_own_runs) + SUM(fpms.mf_bat_peer_runs) / NULLIF(SUM(fpms.mf_bat_peer_dismissals), 0)) / (SUM(fpms.mf_bat_own_dismissals) + 1)) / NULLIF(SUM(fpms.mf_bat_peer_runs) / NULLIF(SUM(fpms.mf_bat_peer_dismissals), 0), 0) AS pooled_batting_match_factor, CASE WHEN SUM(fpms.mf_bowl_own_wickets) > 0 THEN (SUM(fpms.mf_bowl_peer_runs_conceded) / NULLIF(SUM(fpms.mf_bowl_peer_wickets), 0)) / NULLIF((SUM(fpms.mf_bowl_own_runs_conceded) + SUM(fpms.mf_bowl_peer_runs_conceded) / NULLIF(SUM(fpms.mf_bowl_peer_wickets), 0)) / (SUM(fpms.mf_bowl_own_wickets) + 1), 0) END AS pooled_bowling_match_factor, (((SUM(fpms.mf_bat_own_runs) + SUM(fpms.mf_bat_peer_runs) / NULLIF(SUM(fpms.mf_bat_peer_dismissals), 0)) / (SUM(fpms.mf_bat_own_dismissals) + 1)) / NULLIF(SUM(fpms.mf_bat_peer_runs) / NULLIF(SUM(fpms.mf_bat_peer_dismissals), 0), 0)) + (CASE WHEN SUM(fpms.mf_bowl_own_wickets) > 0 THEN (SUM(fpms.mf_bowl_peer_runs_conceded) / NULLIF(SUM(fpms.mf_bowl_peer_wickets), 0)) / NULLIF((SUM(fpms.mf_bowl_own_runs_conceded) + SUM(fpms.mf_bowl_peer_runs_conceded) / NULLIF(SUM(fpms.mf_bowl_peer_wickets), 0)) / (SUM(fpms.mf_bowl_own_wickets) + 1), 0) END) AS all_rounder_composite FROM fact_player_match_summary AS fpms JOIN summary_players AS sp ON fpms.player_id = sp.player_id GROUP BY sp.player_name HAVING SUM(CASE WHEN fpms.mf_bat_own_runs IS NOT NULL AND fpms.mf_bowl_own_wickets IS NOT NULL THEN 1 ELSE 0 END) >= 5 ORDER BY all_rounder_composite DESC NULLS LAST LIMIT 10'
+    ),
+    series_results AS (
+        QUESTION 'What were the results of the England v New Zealand Test series in June 2026?'
+        SQL 'SELECT m.series_name, m.series_match_number, m.series_scheduled_matches, m.match_date, ht.team_name AS home_team, at.team_name AS away_team, wt.team_name AS winning_team, m.result_type, m.result_margin_type, m.result_margin_value FROM dim_match AS m JOIN home_teams AS ht ON m.home_team_id = ht.team_id JOIN away_teams AS at ON m.away_team_id = at.team_id LEFT JOIN winning_teams AS wt ON m.winning_team_id = wt.team_id WHERE m.series_name = ''England v New Zealand Test series, Jun 2026'' ORDER BY m.series_match_number'
     ),
     team_match_summary_totals AS (
         QUESTION 'What were Hampshire''s total runs, wickets lost, and result against Glamorgan on 1 May 2026?'

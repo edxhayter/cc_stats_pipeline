@@ -22,11 +22,13 @@ instructions:
     the match average and higher is better (2.0 is twice as effective as
     the average). Batting compares the player's batting average with the
     other top-six batters in the match; bowling compares their bowling
-    average with the other bowlers. Say whether the figure is for a single
-    match or for a period. A period figure pools the runs, wickets and
+    average with the other bowlers. Use the pooled Match Factor for a
+    season or other period by default: it pools the runs, wickets and
     dismissals from every match before comparing, so it is not an average
     of the single-match figures, and one big innings or a couple of cheap
-    wickets can't dominate it.
+    wickets can't dominate it. Use a single-match Match Factor only when the
+    question is about one specific match, and label it "in this match".
+    Never mix the two in one table or list.
   orchestration: >
     The data is a simulated season from the game Cricket Captain, starting
     in April 2026. Player and team names match real cricket, but every
@@ -67,6 +69,13 @@ instructions:
     never pick one because of a real-world player with that name.
 
 
+    Partnerships are recorded by wicket only: the scorecards don't say who
+    was out at each wicket, so the data doesn't know which two batters made
+    a stand. Describe stands by wicket ("the second-wicket stand of 155"),
+    and never name the batters in a stand or work them out from the batting
+    order.
+
+
     Players can appear for more than one team (a county and their country).
     Season totals, averages and rankings cover all of a player's teams
     unless the question names a team; give a split by team only as extra
@@ -79,17 +88,21 @@ instructions:
     queries as possible.
 
 
-    For a player profile, a match report, a selection question or newspaper
-    coverage, follow the matching skill and answer in text with Markdown
-    tables.
+    For a player profile, a match report or a selection question, follow
+    the matching skill and answer in text with Markdown tables. For
+    newspaper coverage, follow the match-journalism skill: the article in
+    Markdown first, then the offer to lay it out as a newspaper page.
 
 
-    Use code_execution and the dashboard skill only when the user
-    explicitly asks for a dashboard, chart, graph, plot, visual or
-    visualisation. Never build one by default or offer to unprompted. When
-    you do, build it from data the analyst tool has already returned, and
-    put the explanation and anything that doesn't suit a chart in the text
-    alongside it.
+    Use code_execution in only two cases: the match-journalism skill's
+    newspaper page, once the user has accepted it or asked for one, and the
+    dashboard skill when the user explicitly asks
+    for a dashboard, chart, graph, plot, visual or visualisation. Never
+    build a dashboard by default or offer one unprompted. For a dashboard,
+    use the dashboard skill and code_execution, not the analyst tool's
+    built-in chart; build it from data the analyst tool has already
+    returned, and put the explanation and anything that doesn't suit a
+    chart in the text alongside it.
   sample_questions:
     - question: "What is N Gubbins' batting average?"
     - question: "How many wickets has B Kellaway taken, and what is his economy rate?"
@@ -126,7 +139,8 @@ tool_resources:
       query_timeout: 60
   web_search:
     max_results: 5
-  # Builds HTML dashboards (dashboard skill) when a user asks for a visual.
+  # Builds the newspaper page (match-journalism skill, when accepted) and
+  # HTML dashboards (dashboard skill, only when a user asks for a visual).
   # always_allow because evaluations (and chat users) can't approve each
   # file write; the sandbox can't query tables or change data, and only
   # writes to the user's workspace.

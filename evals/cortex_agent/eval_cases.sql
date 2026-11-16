@@ -28,8 +28,10 @@
 --                      the web; career questions default to the simulation
 --   web_context      — real-world background and pre-simulation history via
 --                      web search, labelled and kept separate
---   skill            — player-profile, match-report, selector and
---                      match-journalism, answered in text (no dashboard)
+--   skill            — player-profile, match-report, selector (including
+--                      county candidates for an international side) and
+--                      match-journalism (Markdown, then the newspaper-page
+--                      offer), answered in text (no dashboard)
 --   dashboard        — explicit requests for a visual; the only cases that
 --                      expect code_execution
 --   fixed_fact       — exact figures that can't change as data is added
@@ -131,12 +133,17 @@ FROM VALUES
 
     ('skill_selector', 'skill',
      $$Who should open the batting for Hampshire in their next T20?$$,
-     $${"ground_truth_output": "A text recommendation (no dashboard, since none was asked for) structured as a recommended option, the incumbents and other options. The incumbents are the openers from Hampshire's most recent T20 in the data. It should compare candidates on T20 strike rate and average from the 2026 simulated season, note any wicketkeeping implications for team balance, and offer options for different conditions for the selector to weigh. It must not invent figures.",
+     $${"ground_truth_output": "A text recommendation (no dashboard, since none was asked for) structured as a recommended option, the incumbents and other options. The incumbents are the openers from Hampshire's most recent T20 in the data. It should compare candidates on T20 strike rate and average from the 2026 simulated season, show recent form as scores rather than single-match Match Factors, label any Match Factor as the pooled season figure, note any wicketkeeping implications for team balance, and offer options for different conditions for the selector to weigh. It must not invent figures.",
         "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}]}$$),
+
+    ('skill_selector_domestic', 'skill',
+     $$Who should England bring in to open the batting in the next Test?$$,
+     $${"ground_truth_output": "A text recommendation structured as a recommended option, the incumbents (the openers from England's most recent Test in the data) and other options. Candidates must include county players with strong English FC League (first-class) records from the 2026 simulated season, not only players who have already played for England, with domestic and Test figures shown separately and never combined. Eligibility for England, if mentioned, is labelled as real-world information from the web or flagged as unconfirmed. Any Match Factor is the pooled season figure, labelled as such. It must not invent figures.",
+        "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}, {"tool_name": "web_search"}]}$$),
 
     ('skill_journalism', 'skill',
      $$Write a newspaper report of Hampshire v Glamorgan on 1 May 2026.$$,
-     $${"ground_truth_output": "A broadsheet-style match report in Markdown: a headline that makes a judgement, an italic standfirst, a generic byline and dateline, several paragraphs of measured, analytical prose without hyperbole, and a scores-in-brief line. Facts: Hampshire beat Glamorgan by 135 runs in the first-class league; Hampshire 733 for 19 across two innings, Glamorgan 598 for 20; F Middleton man of the match with 175 runs (69 and 106). It must not invent quotes, the toss, the venue or the weather, and must not be signed as or attributed to a real journalist.",
+     $${"ground_truth_output": "A broadsheet-style match report in Markdown in the reply (no HTML page yet): a headline that makes a judgement, an italic standfirst, a generic byline and dateline, several paragraphs of measured, analytical prose without hyperbole, and a scores-in-brief section, ending with the question \"Would you like this in newspaper format?\". It uses traditional figures (runs, balls, bowling figures, averages) and not Match Factor. Facts: Hampshire beat Glamorgan by 135 runs in the first-class league; Hampshire 733 for 19 across two innings, Glamorgan 598 for 20; F Middleton man of the match with 175 runs (69 and 106). It must not invent quotes, the toss, the venue or the weather, and must not be signed as or attributed to a real journalist.",
         "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}]}$$),
 
     ('dashboard_match', 'dashboard',
@@ -148,6 +155,11 @@ FROM VALUES
      $$Can you chart Hampshire's T20 opening options for me?$$,
      $${"ground_truth_output": "Builds an HTML visual comparing Hampshire's T20 opening options on strike rate and average, with short accompanying text identifying the incumbents (the openers from Hampshire's most recent T20). All figures must come from the 2026 simulated season.",
         "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}, {"tool_name": "code_execution"}]}$$),
+
+    ('series_result', 'fixed_fact',
+     $$Who won the England v New Zealand Test series?$$,
+     $${"ground_truth_output": "New Zealand won the England v New Zealand Test series of June 2026 3-0, winning the first Test by 241 runs, the second by 8 wickets and the third by 5 wickets.",
+        "ground_truth_invocations": [{"tool_name": "cricket_scorecards_analyst"}]}$$),
 
     ('match_result_motm', 'fixed_fact',
      $$Who won the match between Hampshire and Glamorgan on 1 May 2026, and who was man of the match?$$,
