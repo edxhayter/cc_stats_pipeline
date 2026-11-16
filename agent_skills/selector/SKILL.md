@@ -19,8 +19,9 @@ The data has two levels of cricket:
 
 - **International:** Test, ODI and T20I (20 Over International) matches
   between countries.
-- **Domestic (English county):** the English FC League (first-class) and
-  the 20 Over Trophy (T20). There is no domestic 50-over competition.
+- **Domestic (English county):** the English FC League (first-class), the
+  Challenge Trophy (50 overs), the 20 Over Trophy (T20) and the 100 Ball
+  Trophy (the Hundred, 100 balls an innings).
 
 ## 2. Find the incumbent
 
@@ -35,9 +36,13 @@ many of the last five matches they filled it).
 - **International side:** players who have played for that country this
   season, **and** county players with a strong domestic record in the
   matching format — always look at both before recommending. Matching
-  formats: Test ↔ English FC League; T20I ↔ 20 Over Trophy; ODI ↔ both,
-  with a note that there's no domestic 50-over data. For a non-English
-  country, say that domestic cricket outside England isn't in the data.
+  formats: Test ↔ English FC League; ODI ↔ Challenge Trophy and 20 Over
+  Trophy combined; T20I ↔ 20 Over Trophy and 100 Ball Trophy combined.
+  Combine them by pooling the raw figures (runs, balls, dismissals,
+  wickets, runs conceded) and recomputing averages and rates, never by
+  averaging each competition's averages, and show which competitions the
+  figures come from. For a non-English country, say that domestic cricket
+  outside England isn't in the data.
 
 The data doesn't record nationality. For county candidates for England,
 check eligibility with web_search (team plus surname, as in the

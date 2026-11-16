@@ -38,7 +38,7 @@ select
         when block_type = 'batting' and trimmed_line ilike 'TOTAL:%' then 'total'
         when block_type = 'batting' then 'batting_data'
         when block_type = 'bowling'
-            and regexp_like(trimmed_line, '^O\\s+(M|D)\\s+R\\s+W\\s+Econ$')
+            and regexp_like(trimmed_line, '^(O|B)\\s+(M|D)\\s+R\\s+W\\s+Econ$')
             then 'bowling_header'
         when block_type = 'bowling' and trimmed_line ilike 'Fall of Wickets:%' then 'fow_header'
         when block_type = 'bowling' and regexp_like(trimmed_line, '^([0-9]+-[0-9]+\\s*)+$') then 'fow_data'

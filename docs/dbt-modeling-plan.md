@@ -20,12 +20,17 @@ known structural variants:
   combined, so they never bat again — confirmed in 2 of 173 real files).
   Bowling column header is `O  M  R  W  Econ` (Maidens).
 
-Competition/date line has five known format variants (discovered by
-running against all 173 real files, not assumed up front):
+Competition/date line has seven known format variants (the first five
+discovered by running against all 173 real files, not assumed up front):
 `TEST`, `ODI`, `T20` (domestic "20 Over Trophy"), `T20I` (international
 "20 Over International" — same bracketed `"{ordinal} {type} (of N)"`
 structure as TEST/ODI, easy to miss since it reads like domestic T20 at
-a glance), `FC_LEAGUE`.
+a glance), `FC_LEAGUE`, then from the Aug 2026 files `LIST_A` (domestic
+50-over "Challenge Trophy") and `HUNDRED` ("100 Ball Trophy"). Hundred
+scorecards count balls: the bowling header is `B  D  R  W  Econ` (balls,
+dots, economy per 5 balls) and totals read "(7 wkts, 100 balls)". Both are
+converted to overs.balls and economy per 6 balls in the intermediate
+layer, so the marts' overs and economy compare across formats.
 
 Other format notes:
 - Block boundaries are marked by lines of `*` characters.
@@ -131,9 +136,9 @@ reuse benefit to normalizing it out, only an extra join for every query.
 | `match_date` | date | |
 | `home_team_id` | FK → `dim_team` | the team listed first in the source file name/header — by convention, the home team |
 | `away_team_id` | FK → `dim_team` | |
-| `competition_name` | string | e.g. "English FC League", "20 Over Trophy", "One Day International", "Test Match", "20 Over International" |
+| `competition_name` | string | e.g. "English FC League", "Challenge Trophy", "20 Over Trophy", "100 Ball Trophy", "One Day International", "Test Match", "20 Over International" |
 | `competition_variant` | string | e.g. "D1", "Mid & West", "2nd Test Match (of 2)" |
-| `match_format` | string enum | `TEST` / `ODI` / `T20` / `T20I` / `FC_LEAGUE` — extracted directly from the competition line, not just derived from innings-block count. `T20I` is a real discovery (see Source section), not part of the original 4-value design |
+| `match_format` | string enum | `TEST` / `ODI` / `T20` / `T20I` / `FC_LEAGUE` / `LIST_A` / `HUNDRED` — extracted directly from the competition line, not just derived from innings-block count. `T20I` is a real discovery (see Source section), not part of the original 4-value design |
 | `innings_per_team` | int | `1` (limited overs) or `2` (Test/FC) — kept as a simple derived flag alongside `match_format` for downstream logic that just needs the count. Note an innings-victory FC match still has `innings_per_team = 2` here (that's the format's normal rule) even though one team's actual innings count for that specific match was only 1 — this column describes the format, not the realized per-match count |
 | `winning_team_id` | FK → `dim_team`, nullable | null if drawn/no result |
 | `result_type` | string enum | `WIN` / `DRAW` / `TIE` / `NO_RESULT` — `DRAW` confirmed present in real data (9 of 173 files); `TIE`/`NO_RESULT` remain unconfirmed |

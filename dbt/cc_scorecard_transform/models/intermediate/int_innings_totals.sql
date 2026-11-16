@@ -36,7 +36,8 @@ totals as (
         source_file_name,
         block_id,
         regexp_substr(raw_line, 'TOTAL:\\s*\\(([^,]+),', 1, 1, 'e', 1) as total_detail,
-        try_to_number(regexp_substr(raw_line, '([0-9.]+)\\s*overs', 1, 1, 'e', 1)) as overs_faced,
+        try_to_number(regexp_substr(raw_line, '([0-9.]+)\\s*overs', 1, 1, 'e', 1), 10, 1) as overs_raw,
+        try_to_number(regexp_substr(raw_line, '([0-9]+)\\s*balls', 1, 1, 'e', 1)) as balls_raw,
         try_to_number(regexp_substr(raw_line, '([0-9]+)\\s*$', 1, 1, 'e', 1)) as total_runs
     from {{ ref('stg_row_classification') }}
     where row_type = 'total'
@@ -56,7 +57,8 @@ select
         when t.total_detail ilike '%all out%' then 10
         else try_to_number(regexp_substr(t.total_detail, '([0-9]+)', 1, 1, 'e', 1))
     end as wickets_lost,
-    t.overs_faced,
+    -- 100 Ball Trophy totals give balls; convert to overs.balls (79 -> 13.1)
+    coalesce(t.overs_raw, floor(t.balls_raw / 6) + mod(t.balls_raw, 6) / 10) as overs_faced,
     e.extras_total
 from batting_headers h
 left join extras e
