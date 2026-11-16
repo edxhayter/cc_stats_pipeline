@@ -67,10 +67,8 @@ models:
       - name: series_id
         description: >
           International series: matches between the same two teams in the
-          same format (TEST, ODI, T20I). A match joins the previous one's
-          series when its "(of N)" label follows on, however long the gap,
-          or when it's within 30 days and doesn't start a new series. Null
-          for domestic matches.
+          same format (TEST, ODI, T20I) with no more than 30 days between
+          consecutive matches. Null for domestic matches.
         tests:
           - not_null:
               config:

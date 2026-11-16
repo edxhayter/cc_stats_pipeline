@@ -4,12 +4,9 @@
 -- (see int_innings_totals / docs/dbt-modeling-plan.md).
 --
 -- Series: international matches (TEST, ODI, T20I) between the same two
--- teams in the same format. A match continues the previous one's series
--- when its label follows on ("3rd (of 3)" after "2nd (of 3)"), however long
--- the gap, since a series can pause for another; otherwise when it's no
--- more than 30 days later and doesn't start afresh ("1st" after a finished
--- series). Labels alone aren't enough: "Only" can head a three-match series.
--- Domestic matches have no series.
+-- teams in the same format, with no more than 30 days between consecutive
+-- matches. Derived rather than read from competition_variant, which can be
+-- wrong ("Only" on the first of three ODIs). Domestic matches have no series.
 
 with matches as (
 
@@ -31,10 +28,7 @@ with matches as (
         r.result_margin_value,
         mp.player_id as man_of_the_match_id,
         least(mh.home_team, mh.away_team) as team_a,
-        greatest(mh.home_team, mh.away_team) as team_b,
-        -- "2nd (of 3)" -> 2 and 3; "Only" -> null
-        try_to_number(regexp_substr(mh.competition_variant, '^(\\d+)', 1, 1, 'e', 1)) as series_ordinal,
-        try_to_number(regexp_substr(mh.competition_variant, '\\(of (\\d+)\\)', 1, 1, 'e', 1)) as series_of
+        greatest(mh.home_team, mh.away_team) as team_b
     from {{ ref('int_match_header') }} mh
     join {{ ref('int_result') }} r on mh.source_file_name = r.source_file_name
     join {{ ref('dim_team') }} ht on mh.home_team = ht.team_name
@@ -44,39 +38,23 @@ with matches as (
 
 ),
 
-series_prev as (
-
-    select
-        *,
-        lag(match_date) over (
-            partition by match_format, team_a, team_b
-            order by match_date, source_file_name
-        ) as prev_date,
-        lag(series_ordinal) over (
-            partition by match_format, team_a, team_b
-            order by match_date, source_file_name
-        ) as prev_ordinal,
-        lag(series_of) over (
-            partition by match_format, team_a, team_b
-            order by match_date, source_file_name
-        ) as prev_of
-    from matches
-    where match_format in ('TEST', 'ODI', 'T20I')
-
-),
-
 series_breaks as (
 
     select
         *,
         case
-            when prev_date is null then 1
-            when series_ordinal = prev_ordinal + 1 and series_of = prev_of then 0
-            when series_ordinal = 1 and prev_ordinal = prev_of then 1
-            when datediff(day, prev_date, match_date) <= 30 then 0
+            when datediff(
+                day,
+                lag(match_date) over (
+                    partition by match_format, team_a, team_b
+                    order by match_date, source_file_name
+                ),
+                match_date
+            ) <= 30 then 0
             else 1
         end as starts_series
-    from series_prev
+    from matches
+    where match_format in ('TEST', 'ODI', 'T20I')
 
 ),
 
@@ -117,7 +95,7 @@ series as (
             count(*) over (
                 partition by sn.match_format, sn.team_a, sn.team_b, sn.series_seq
             ),
-            coalesce(max(m.series_of) over (
+            coalesce(max(try_to_number(regexp_substr(m.competition_variant, '\\(of (\\d+)\\)', 1, 1, 'e', 1))) over (
                 partition by sn.match_format, sn.team_a, sn.team_b, sn.series_seq
             ), 1)
         ) as series_scheduled_matches,
